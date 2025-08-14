@@ -1265,6 +1265,638 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
   );
 };
 
+// Content Components for new navigation
+const HomeContent = ({ user, stats }) => {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Olá, {user.nome.split(' ')[0]}! 👋
+        </h1>
+        <p className="text-gray-600">
+          {user.tipo === 'morador' 
+            ? 'Encontre os melhores serviços para sua casa' 
+            : 'Gerencie seus serviços e agendamentos'
+          }
+        </p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {user.tipo === 'morador' && (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-blue-100">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                    <p className="text-xl font-bold text-gray-900">12</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-orange-100">
+                    <CreditCard className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Pendentes</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.getPendingPayments}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-green-100">
+                    <Star className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Concluídos</p>
+                    <p className="text-xl font-bold text-gray-900">{stats.getCompletedServices}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {user.tipo === 'prestador' && (
+          <>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-green-100">
+                    <CreditCard className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Faturamento</p>
+                    <p className="text-xl font-bold text-gray-900">R$ {stats.getTotalEarnings.toFixed(2)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-blue-100">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                    <p className="text-xl font-bold text-gray-900">8</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-full bg-purple-100">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-gray-500">Serviços Ativos</p>
+                    <p className="text-xl font-bold text-gray-900">3</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Ações Rápidas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {user.tipo === 'morador' && (
+              <>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Map className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Ver Mapa</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Users className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Buscar Serviços</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agendamentos</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Star className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Avaliar</span>
+                </Button>
+              </>
+            )}
+            {user.tipo === 'prestador' && (
+              <>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Plus className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Novo Serviço</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agenda</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <CreditCard className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Faturamento</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col">
+                  <Settings className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Configurações</span>
+                </Button>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+const ServicesContent = ({ services, onBook }) => {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Serviços Disponíveis</h2>
+        <Badge variant="outline">
+          {services.length} encontrados
+        </Badge>
+      </div>
+      
+      {/* Map View Option */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Map className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <h3 className="font-semibold text-blue-900">Ver no Mapa</h3>
+                <p className="text-sm text-blue-700">Encontre prestadores próximos a você</p>
+              </div>
+            </div>
+            <Button variant="outline" className="border-blue-300 text-blue-700">
+              Abrir Mapa
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {services.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço disponível</h3>
+            <p className="text-gray-500">Aguarde novos prestadores se cadastrarem.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {services.map((service) => (
+            <ServiceCard key={service.id} service={service} onBook={onBook} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MyServicesContent = ({ services, onUpdate }) => {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Meus Serviços</h2>
+        <CreateServiceDialog onSuccess={onUpdate} />
+      </div>
+      
+      {services.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço cadastrado</h3>
+            <p className="text-gray-500 mb-4">Comece criando seu primeiro serviço.</p>
+            <CreateServiceDialog onSuccess={onUpdate} />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {services.map((service) => (
+            <ServiceCard key={service.id} service={service} isOwner={true} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BookingsContent = ({ bookings, onUpdate }) => {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Agendamentos</h2>
+      
+      {bookings.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agendamento</h3>
+            <p className="text-gray-500">Seus agendamentos aparecerão aqui.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {bookings.map((booking) => (
+            <BookingCard key={booking.id} booking={booking} onUpdate={onUpdate} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EarningsContent = ({ user }) => {
+  const [earnings, setEarnings] = useState(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadEarnings();
+  }, []);
+
+  const loadEarnings = async () => {
+    try {
+      const response = await axios.get(`${API}/profile/earnings`);
+      setEarnings(response.data);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar faturamento",
+        description: "Não foi possível carregar os dados de faturamento",
+      });
+    }
+  };
+
+  if (!earnings) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <p>Carregando faturamento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Faturamento</h2>
+      
+      {/* Earnings Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-green-100">
+                <CreditCard className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Faturado</p>
+                <p className="text-2xl font-bold text-green-600">R$ {earnings.total_earnings.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-blue-100">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Este Mês</p>
+                <p className="text-2xl font-bold text-blue-600">R$ {earnings.this_month_earnings.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-purple-100">
+                <Star className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Serviços</p>
+                <p className="text-2xl font-bold text-purple-600">{earnings.total_services}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-orange-100">
+                <Clock className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Pendente</p>
+                <p className="text-2xl font-bold text-orange-600">R$ {earnings.pending_payments.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Transações Recentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {earnings.recent_transactions.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Nenhuma transação encontrada</p>
+          ) : (
+            <div className="space-y-4">
+              {earnings.recent_transactions.map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-full bg-green-100">
+                      <CreditCard className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="font-medium">Pagamento recebido</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(transaction.date).toLocaleDateString('pt-BR')} • {transaction.method}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-bold text-green-600">+ R$ {transaction.amount.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+const ProfileContent = ({ user, onUpdate, onLogout }) => {
+  const [activeSection, setActiveSection] = useState('dados');
+  const [profile, setProfile] = useState({
+    nome: user.nome,
+    telefone: user.telefone,
+    endereco: user.endereco,
+    bio: user.bio || '',
+    foto_url: user.foto_url || ''
+  });
+  const [settings, setSettings] = useState({
+    geolocalizacao_ativa: user.geolocalizacao_ativa || false,
+    notificacoes_ativadas: user.notificacoes_ativadas !== false,
+    privacidade_perfil: user.privacidade_perfil || 'publico'
+  });
+  const { toast } = useToast();
+
+  const handleProfileUpdate = async () => {
+    try {
+      await axios.put(`${API}/profile`, profile);
+      toast({
+        title: "Perfil atualizado!",
+        description: "Suas informações foram salvas com sucesso.",
+      });
+      onUpdate();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar perfil",
+        description: error.response?.data?.detail || "Tente novamente",
+      });
+    }
+  };
+
+  const handleSettingsUpdate = async () => {
+    try {
+      await axios.put(`${API}/settings`, settings);
+      toast({
+        title: "Configurações salvas!",
+        description: "Suas preferências foram atualizadas.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar configurações",
+        description: error.response?.data?.detail || "Tente novamente",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Minha Conta</h2>
+        <Button variant="outline" onClick={onLogout}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Sair
+        </Button>
+      </div>
+
+      {/* Profile Header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center space-x-4">
+            <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">
+                {user.nome.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">{user.nome}</h3>
+              <p className="text-gray-600">{user.email}</p>
+              <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
+                {user.tipo === 'morador' ? '🏠 Morador' : '🔧 Prestador'}
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Profile Navigation */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="space-y-2">
+          <Button
+            variant={activeSection === 'dados' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setActiveSection('dados')}
+          >
+            <User className="h-4 w-4 mr-2" />
+            Dados Pessoais
+          </Button>
+          <Button
+            variant={activeSection === 'pagamento' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setActiveSection('pagamento')}
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Pagamento
+          </Button>
+          <Button
+            variant={activeSection === 'seguranca' ? 'default' : 'ghost'}
+            className="w-full justify-start"
+            onClick={() => setActiveSection('seguranca')}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Segurança
+          </Button>
+        </div>
+
+        <div className="md:col-span-3">
+          {activeSection === 'dados' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Dados Pessoais</CardTitle>
+                <CardDescription>Atualize suas informações pessoais</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="nome">Nome completo</Label>
+                  <Input
+                    id="nome"
+                    value={profile.nome}
+                    onChange={(e) => setProfile({ ...profile, nome: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    value={profile.telefone}
+                    onChange={(e) => setProfile({ ...profile, telefone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endereco">Endereço</Label>
+                  <Input
+                    id="endereco"
+                    value={profile.endereco}
+                    onChange={(e) => setProfile({ ...profile, endereco: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bio">Biografia</Label>
+                  <Textarea
+                    id="bio"
+                    value={profile.bio}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    placeholder="Conte um pouco sobre você..."
+                  />
+                </div>
+                <Button onClick={handleProfileUpdate}>Salvar Alterações</Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'pagamento' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Formas de Pagamento</CardTitle>
+                <CardDescription>Gerencie suas formas de pagamento</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma forma de pagamento</h3>
+                  <p className="text-gray-500 mb-4">Adicione cartões ou contas para facilitar os pagamentos</p>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Forma de Pagamento
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSection === 'seguranca' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurações de Segurança</CardTitle>
+                <CardDescription>Gerencie suas preferências de privacidade e segurança</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {user.tipo === 'prestador' && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">Geolocalização</h4>
+                      <p className="text-sm text-gray-500">Permitir que moradores vejam sua localização no mapa</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="geo"
+                        checked={settings.geolocalizacao_ativa}
+                        onChange={(e) => setSettings({ ...settings, geolocalizacao_ativa: e.target.checked })}
+                        className="rounded"
+                      />
+                      <Label htmlFor="geo">Ativado</Label>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Notificações</h4>
+                    <p className="text-sm text-gray-500">Receber notificações sobre agendamentos e mensagens</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="notif"
+                      checked={settings.notificacoes_ativadas}
+                      onChange={(e) => setSettings({ ...settings, notificacoes_ativadas: e.target.checked })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="notif">Ativado</Label>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Privacidade do Perfil</Label>
+                  <Select 
+                    value={settings.privacidade_perfil} 
+                    onValueChange={(value) => setSettings({ ...settings, privacidade_perfil: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="publico">Público</SelectItem>
+                      <SelectItem value="privado">Privado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button onClick={handleSettingsUpdate}>Salvar Configurações</Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
