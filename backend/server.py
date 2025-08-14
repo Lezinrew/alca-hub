@@ -231,6 +231,40 @@ def get_mercado_pago_sdk():
         raise HTTPException(status_code=500, detail="Mercado Pago not configured")
     return mercadopago.SDK(MERCADO_PAGO_ACCESS_TOKEN)
 
+async def auto_approve_demo_payment(payment_id: str, delay_seconds: int):
+    """Auto-approve demo payment after delay for testing purposes"""
+    import asyncio
+    await asyncio.sleep(delay_seconds)
+    
+    try:
+        # Update payment status to approved
+        await db.payments.update_one(
+            {"mercado_pago_id": payment_id},
+            {
+                "$set": {
+                    "status": "approved",
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        # Update booking payment status
+        payment_record = await db.payments.find_one({"mercado_pago_id": payment_id})
+        if payment_record:
+            await db.bookings.update_one(
+                {"id": payment_record["booking_id"]},
+                {
+                    "$set": {
+                        "payment_status": "paid",
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+        
+        logger.info(f"Demo payment {payment_id} auto-approved after {delay_seconds} seconds")
+    except Exception as e:
+        logger.error(f"Error auto-approving demo payment {payment_id}: {str(e)}")
+
 # Authentication routes
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
