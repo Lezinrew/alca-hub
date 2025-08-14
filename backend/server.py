@@ -90,6 +90,8 @@ class UserCreate(BaseModel):
     endereco: str
     tipo: UserType
     foto_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
