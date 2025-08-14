@@ -343,29 +343,73 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [services, setServices] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [myServices, setMyServices] = useState([]);
+  const [stats, setStats] = useState(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   const loadData = async () => {
     try {
+      // Load different data based on user type
       if (user.tipo === 'morador') {
         const servicesResponse = await axios.get(`${API}/services`);
         setServices(servicesResponse.data);
+      } else if (user.tipo === 'prestador') {
+        const myServicesResponse = await axios.get(`${API}/my-services`);
+        setMyServices(myServicesResponse.data);
       }
       
       const bookingsResponse = await axios.get(`${API}/bookings`);
       setBookings(bookingsResponse.data);
+
+      // Get stats for admin or general info
+      if (user.tipo === 'admin') {
+        try {
+          const statsResponse = await axios.get(`${API}/stats/overview`);
+          setStats(statsResponse.data);
+        } catch (error) {
+          console.log('Stats not available for this user');
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados",
+        description: "Alguns dados podem não estar disponíveis",
+      });
     }
   };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const getPendingPayments = () => {
+    return bookings.filter(booking => 
+      booking.payment_status === 'pending' && user.id === booking.morador_id
+    ).length;
+  };
+
+  const getCompletedServices = () => {
+    return bookings.filter(booking => 
+      booking.status === 'concluido' && 
+      (user.tipo === 'morador' ? user.id === booking.morador_id : user.id === booking.prestador_id)
+    ).length;
+  };
+
+  const getTotalEarnings = () => {
+    return bookings
+      .filter(booking => 
+        booking.status === 'concluido' && 
+        booking.payment_status === 'paid' && 
+        user.id === booking.prestador_id
+      )
+      .reduce((total, booking) => total + booking.preco_total, 0);
   };
 
   return (
@@ -377,13 +421,16 @@ const Dashboard = () => {
             <div className="flex items-center">
               <Home className="h-8 w-8 text-indigo-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">Alça Hub</span>
+              <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                v1.0 • Demo
+              </span>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Olá, {user.nome}
+                Olá, <span className="font-semibold">{user.nome}</span>
               </span>
-              <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
-                {user.tipo === 'morador' ? 'Morador' : 'Prestador'}
+              <Badge variant={user.tipo === 'morador' ? 'default' : user.tipo === 'prestador' ? 'secondary' : 'destructive'}>
+                {user.tipo === 'morador' ? '🏠 Morador' : user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
               </Badge>
               <Button variant="ghost" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
@@ -393,19 +440,111 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {user.tipo === 'morador' && (
+              <>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-blue-100">
+                        <Calendar className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                        <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-orange-100">
+                        <CreditCard className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Pagamentos Pendentes</p>
+                        <p className="text-2xl font-bold text-gray-900">{getPendingPayments()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-green-100">
+                        <Star className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Serviços Concluídos</p>
+                        <p className="text-2xl font-bold text-gray-900">{getCompletedServices()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {user.tipo === 'prestador' && (
+              <>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-blue-100">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Meus Serviços</p>
+                        <p className="text-2xl font-bold text-gray-900">{myServices.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-green-100">
+                        <Star className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Faturamento</p>
+                        <p className="text-2xl font-bold text-gray-900">R$ {getTotalEarnings().toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-purple-100">
+                        <Calendar className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                        <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+
+          {/* Main Content Tabs */}
           <Tabs defaultValue={user.tipo === 'morador' ? 'services' : 'my-services'} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               {user.tipo === 'morador' && (
-                <TabsTrigger value="services">Buscar Serviços</TabsTrigger>
+                <TabsTrigger value="services">🔍 Buscar Serviços</TabsTrigger>
               )}
               {user.tipo === 'prestador' && (
-                <TabsTrigger value="my-services">Meus Serviços</TabsTrigger>
+                <TabsTrigger value="my-services">🛠️ Meus Serviços</TabsTrigger>
               )}
               <TabsTrigger value="bookings">
-                {user.tipo === 'morador' ? 'Meus Agendamentos' : 'Agendamentos Recebidos'}
+                📅 {user.tipo === 'morador' ? 'Meus Agendamentos' : 'Agendamentos Recebidos'}
               </TabsTrigger>
             </TabsList>
 
@@ -413,12 +552,25 @@ const Dashboard = () => {
               <TabsContent value="services" className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold">Serviços Disponíveis</h2>
+                  <Badge variant="outline">
+                    {services.length} serviços encontrados
+                  </Badge>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {services.map((service) => (
-                    <ServiceCard key={service.id} service={service} onBook={loadData} />
-                  ))}
-                </div>
+                {services.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço disponível</h3>
+                      <p className="text-gray-500">Aguarde novos prestadores se cadastrarem.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {services.map((service) => (
+                      <ServiceCard key={service.id} service={service} onBook={loadData} />
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             )}
 
@@ -428,11 +580,22 @@ const Dashboard = () => {
                   <h2 className="text-2xl font-bold">Meus Serviços</h2>
                   <CreateServiceDialog onSuccess={loadData} />
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {services.map((service) => (
-                    <ServiceCard key={service.id} service={service} isOwner={true} />
-                  ))}
-                </div>
+                {myServices.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço cadastrado</h3>
+                      <p className="text-gray-500 mb-4">Comece criando seu primeiro serviço.</p>
+                      <CreateServiceDialog onSuccess={loadData} />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {myServices.map((service) => (
+                      <ServiceCard key={service.id} service={service} isOwner={true} />
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             )}
 
@@ -440,15 +603,30 @@ const Dashboard = () => {
               <h2 className="text-2xl font-bold">
                 {user.tipo === 'morador' ? 'Meus Agendamentos' : 'Agendamentos Recebidos'}
               </h2>
-              <div className="space-y-4">
-                {bookings.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} onUpdate={loadData} />
-                ))}
-              </div>
+              {bookings.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agendamento</h3>
+                    <p className="text-gray-500">
+                      {user.tipo === 'morador' 
+                        ? 'Faça seu primeiro agendamento na aba "Buscar Serviços"' 
+                        : 'Aguarde agendamentos dos moradores'
+                      }
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {bookings.map((booking) => (
+                    <BookingCard key={booking.id} booking={booking} onUpdate={loadData} />
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
