@@ -881,6 +881,356 @@ async def get_mercadopago_public_key():
     
     return {"public_key": MERCADO_PAGO_PUBLIC_KEY}
 
+# Geolocation and Map routes
+@api_router.put("/users/location")
+async def update_user_location(
+    latitude: float,
+    longitude: float,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user location coordinates"""
+    try:
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$set": {
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return {"message": "Localização atualizada com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao atualizar localização: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar localização")
+
+@api_router.put("/users/availability")
+async def update_availability(
+    disponivel: bool,
+    current_user: User = Depends(get_current_user)
+):
+    """Update service provider availability"""
+    if current_user.tipo != UserType.PRESTADOR:
+        raise HTTPException(status_code=403, detail="Apenas prestadores podem alterar disponibilidade")
+    
+    try:
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$set": {
+                    "disponivel": disponivel,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return {"message": f"Disponibilidade alterada para {'disponível' if disponivel else 'indisponível'}"}
+    except Exception as e:
+        logger.error(f"Erro ao atualizar disponibilidade: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar disponibilidade")
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two coordinates using Haversine formula"""
+    from math import radians, cos, sin, asin, sqrt
+    
+    # Convert decimal degrees to radians
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Radius of earth in kilometers
+    
+    return c * r
+
+@api_router.get("/map/providers-nearby")
+async def get_nearby_providers(
+    latitude: float,
+    longitude: float,
+    radius_km: float = 10.0,
+    categoria: Optional[str] = None,  
+    current_user: User = Depends(get_current_user)
+):
+    """Get nearby service providers with their services"""
+    try:
+        # Get all available service providers
+        providers_query = {
+            "tipo": UserType.PRESTADOR,
+            "ativo": True,
+            "disponivel": True,
+            "latitude": {"$ne": None},
+            "longitude": {"$ne": None}
+        }
+        
+        providers = await db.users.find(providers_query).to_list(length=100)
+        
+        nearby_providers = []
+        
+        for provider in providers:
+            # Calculate distance
+            distance = calculate_distance(
+                latitude, longitude,
+                provider["latitude"], provider["longitude"]
+            )
+            
+            if distance <= radius_km:
+                # Get provider's services
+                services_query = {"prestador_id": provider["id"], "status": ServiceStatus.DISPONIVEL}
+                if categoria:
+                    services_query["categoria"] = categoria
+                
+                services = await db.services.find(services_query).to_list(length=100)
+                
+                if services:  # Only include providers who have services
+                    provider_data = {
+                        "provider_id": provider["id"],
+                        "nome": provider["nome"],
+                        "telefone": provider["telefone"],
+                        "latitude": provider["latitude"],
+                        "longitude": provider["longitude"],
+                        "distance_km": round(distance, 2),
+                        "estimated_time_min": max(5, int(distance * 3)),  # 3 min per km, min 5 min
+                        "services": [
+                            {
+                                "id": service["id"],
+                                "nome": service["nome"],
+                                "categoria": service["categoria"],
+                                "preco_por_hora": service["preco_por_hora"],
+                                "media_avaliacoes": service.get("media_avaliacoes", 0),
+                                "total_avaliacoes": service.get("total_avaliacoes", 0)
+                            }
+                            for service in services
+                        ]
+                    }
+                    nearby_providers.append(provider_data)
+        
+        # Sort by distance
+        nearby_providers.sort(key=lambda x: x["distance_km"])
+        
+        return {
+            "providers": nearby_providers,
+            "total": len(nearby_providers)
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar prestadores próximos: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar prestadores próximos")
+
+# Chat routes for negotiations
+class ChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    conversation_id: str
+    sender_id: str
+    sender_name: str
+    message: str
+    message_type: str = "text"  # text, service_request, price_offer
+    service_id: Optional[str] = None
+    proposed_price: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+@api_router.post("/chat/conversations")
+async def create_conversation(
+    provider_id: str,
+    service_id: str,
+    initial_message: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new chat conversation for service negotiation"""
+    try:
+        # Verify provider exists
+        provider = await db.users.find_one({"id": provider_id, "tipo": UserType.PRESTADOR})
+        if not provider:
+            raise HTTPException(status_code=404, detail="Prestador não encontrado")
+        
+        # Verify service exists
+        service = await db.services.find_one({"id": service_id, "prestador_id": provider_id})
+        if not service:
+            raise HTTPException(status_code=404, detail="Serviço não encontrado")
+        
+        # Create conversation
+        conversation_id = str(uuid.uuid4())
+        
+        conversation = {
+            "id": conversation_id,
+            "morador_id": current_user.id,
+            "prestador_id": provider_id,
+            "service_id": service_id,
+            "status": "active",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        await db.conversations.insert_one(conversation)
+        
+        # Create initial message
+        message = ChatMessage(
+            conversation_id=conversation_id,
+            sender_id=current_user.id,
+            sender_name=current_user.nome,
+            message=initial_message,
+            service_id=service_id
+        )
+        
+        await db.chat_messages.insert_one(message.dict())
+        
+        return {
+            "conversation_id": conversation_id,
+            "message": "Conversa iniciada com sucesso",
+            "service": {
+                "nome": service["nome"],
+                "preco_por_hora": service["preco_por_hora"]
+            },
+            "provider": {
+                "nome": provider["nome"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao criar conversa: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao criar conversa")
+
+@api_router.get("/chat/conversations")
+async def get_user_conversations(current_user: User = Depends(get_current_user)):
+    """Get user's chat conversations"""
+    try:
+        query = {
+            "$or": [
+                {"morador_id": current_user.id},
+                {"prestador_id": current_user.id}
+            ]
+        }
+        
+        conversations = await db.conversations.find(query).sort("updated_at", -1).to_list(length=100)
+        
+        result = []
+        for conv in conversations:
+            # Get last message
+            last_message = await db.chat_messages.find_one(
+                {"conversation_id": conv["id"]}, 
+                sort=[("created_at", -1)]
+            )
+            
+            # Get other participant info
+            other_user_id = conv["prestador_id"] if current_user.id == conv["morador_id"] else conv["morador_id"]
+            other_user = await db.users.find_one({"id": other_user_id})
+            
+            # Get service info
+            service = await db.services.find_one({"id": conv["service_id"]})
+            
+            if other_user and service:
+                result.append({
+                    "conversation_id": conv["id"],
+                    "other_user": {
+                        "id": other_user["id"],
+                        "nome": other_user["nome"],
+                        "tipo": other_user["tipo"]
+                    },
+                    "service": {
+                        "id": service["id"],
+                        "nome": service["nome"],
+                        "categoria": service["categoria"]
+                    },
+                    "last_message": {
+                        "message": last_message["message"] if last_message else "",
+                        "created_at": last_message["created_at"] if last_message else conv["created_at"]
+                    },
+                    "status": conv["status"]
+                })
+        
+        return {"conversations": result}
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar conversas: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar conversas")
+
+@api_router.get("/chat/{conversation_id}/messages")
+async def get_conversation_messages(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get messages from a conversation"""
+    try:
+        # Verify user is part of conversation
+        conversation = await db.conversations.find_one({
+            "id": conversation_id,
+            "$or": [
+                {"morador_id": current_user.id},
+                {"prestador_id": current_user.id}
+            ]
+        })
+        
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversa não encontrada")
+        
+        messages = await db.chat_messages.find(
+            {"conversation_id": conversation_id}
+        ).sort("created_at", 1).to_list(length=1000)
+        
+        return {
+            "messages": [ChatMessage(**msg) for msg in messages],
+            "conversation_id": conversation_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar mensagens: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar mensagens")
+
+@api_router.post("/chat/{conversation_id}/messages")
+async def send_message(
+    conversation_id: str,
+    message: str,
+    message_type: str = "text",
+    proposed_price: Optional[float] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Send a message in a conversation"""
+    try:
+        # Verify user is part of conversation
+        conversation = await db.conversations.find_one({
+            "id": conversation_id,
+            "$or": [
+                {"morador_id": current_user.id},
+                {"prestador_id": current_user.id}
+            ]
+        })
+        
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversa não encontrada")
+        
+        # Create message
+        chat_message = ChatMessage(
+            conversation_id=conversation_id,
+            sender_id=current_user.id,
+            sender_name=current_user.nome,
+            message=message,
+            message_type=message_type,
+            proposed_price=proposed_price
+        )
+        
+        await db.chat_messages.insert_one(chat_message.dict())
+        
+        # Update conversation timestamp
+        await db.conversations.update_one(
+            {"id": conversation_id},
+            {"$set": {"updated_at": datetime.utcnow()}}
+        )
+        
+        return {"message": "Mensagem enviada com sucesso", "chat_message": chat_message}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao enviar mensagem: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao enviar mensagem")
+
 # Include the router in the main app
 app.include_router(api_router)
 
