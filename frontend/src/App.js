@@ -1333,7 +1333,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
               {paymentData?.qr_code && paymentStatus === 'pending' && (
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-sm">
-                    <QRCode 
+                    <QRCodeCanvas 
                       value={paymentData.qr_code}
                       size={200}
                       level="M"
