@@ -26,6 +26,7 @@ class AlcaHubTester:
         self.prestador_token = None
         self.service_id = None
         self.booking_id = None
+        self.payment_id = None
         self.test_results = []
         
     def log_test(self, test_name, success, details=""):
