@@ -366,6 +366,148 @@ async def login_user(user_credentials: UserLogin):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
+# Profile and Settings routes
+@api_router.put("/profile")
+async def update_profile(
+    profile_data: UserProfileUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user profile information"""
+    try:
+        update_fields = {k: v for k, v in profile_data.dict().items() if v is not None}
+        if update_fields:
+            update_fields["updated_at"] = datetime.utcnow()
+            
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$set": update_fields}
+            )
+            
+        return {"message": "Perfil atualizado com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao atualizar perfil: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar perfil")
+
+@api_router.put("/settings")
+async def update_settings(
+    settings_data: UserSettingsUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user settings"""
+    try:
+        update_fields = {k: v for k, v in settings_data.dict().items() if v is not None}
+        if update_fields:
+            update_fields["updated_at"] = datetime.utcnow()
+            
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$set": update_fields}
+            )
+            
+        return {"message": "Configurações atualizadas com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao atualizar configurações: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar configurações")
+
+@api_router.post("/profile/payment-methods")
+async def add_payment_method(
+    payment_method: PaymentMethodAdd,
+    current_user: User = Depends(get_current_user)
+):
+    """Add payment method to user profile"""
+    try:
+        payment_method_data = {
+            "id": str(uuid.uuid4()),
+            "tipo": payment_method.tipo,
+            "nome": payment_method.nome,
+            "dados": payment_method.dados,
+            "created_at": datetime.utcnow()
+        }
+        
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$push": {"formas_pagamento": payment_method_data},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        
+        return {"message": "Forma de pagamento adicionada com sucesso", "payment_method": payment_method_data}
+    except Exception as e:
+        logger.error(f"Erro ao adicionar forma de pagamento: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao adicionar forma de pagamento")
+
+@api_router.delete("/profile/payment-methods/{payment_method_id}")
+async def remove_payment_method(
+    payment_method_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Remove payment method from user profile"""
+    try:
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$pull": {"formas_pagamento": {"id": payment_method_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        
+        return {"message": "Forma de pagamento removida com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao remover forma de pagamento: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao remover forma de pagamento")
+
+@api_router.get("/profile/earnings")
+async def get_earnings_summary(current_user: User = Depends(get_current_user)):
+    """Get earnings summary for service providers"""
+    if current_user.tipo != UserType.PRESTADOR:
+        raise HTTPException(status_code=403, detail="Apenas prestadores podem ver faturamento")
+    
+    try:
+        # Get completed bookings with payments
+        bookings = await db.bookings.find({
+            "prestador_id": current_user.id,
+            "status": "concluido",
+            "payment_status": "paid"
+        }).to_list(length=1000)
+        
+        # Calculate earnings
+        total_earnings = sum(booking["preco_total"] for booking in bookings)
+        this_month_earnings = sum(
+            booking["preco_total"] for booking in bookings
+            if booking["created_at"].month == datetime.utcnow().month and
+               booking["created_at"].year == datetime.utcnow().year
+        )
+        
+        # Get payment transactions
+        payments = await db.payments.find({
+            "user_id": {"$in": [booking["morador_id"] for booking in bookings]},
+            "status": "approved"
+        }).to_list(length=1000)
+        
+        return {
+            "total_earnings": total_earnings,
+            "this_month_earnings": this_month_earnings,
+            "total_services": len(bookings),
+            "pending_payments": sum(
+                booking["preco_total"] for booking in bookings
+                if booking.get("payment_status") == "pending"
+            ),
+            "recent_transactions": [
+                {
+                    "id": payment["id"],
+                    "amount": payment["amount"],
+                    "date": payment["created_at"],
+                    "method": payment["payment_method"]
+                }
+                for payment in sorted(payments, key=lambda x: x["created_at"], reverse=True)[:10]
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar faturamento: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar faturamento")
+
 # Service routes
 @api_router.post("/services", response_model=Service)
 async def create_service(service_data: ServiceCreate, current_user: User = Depends(get_current_user)):
