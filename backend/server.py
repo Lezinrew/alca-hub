@@ -78,6 +78,15 @@ class User(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     disponivel: bool = True  # Para prestadores indicarem disponibilidade
+    geolocalizacao_ativa: bool = False  # Prestador pode ativar/desativar
+    # Configurações de perfil
+    bio: Optional[str] = None
+    data_nascimento: Optional[str] = None
+    # Configurações de pagamento
+    formas_pagamento: List[Dict[str, Any]] = []
+    # Configurações de segurança
+    notificacoes_ativadas: bool = True
+    privacidade_perfil: str = "publico"  # publico, privado
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
