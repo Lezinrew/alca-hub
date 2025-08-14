@@ -536,18 +536,29 @@ const Dashboard = () => {
           </div>
 
           {/* Main Content Tabs */}
-          <Tabs defaultValue={user.tipo === 'morador' ? 'services' : 'my-services'} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs defaultValue={user.tipo === 'morador' ? 'map' : 'my-services'} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
               {user.tipo === 'morador' && (
-                <TabsTrigger value="services">🔍 Buscar Serviços</TabsTrigger>
+                <>
+                  <TabsTrigger value="map">🗺️ Mapa</TabsTrigger>
+                  <TabsTrigger value="services">🔍 Lista</TabsTrigger>
+                </>
               )}
               {user.tipo === 'prestador' && (
                 <TabsTrigger value="my-services">🛠️ Meus Serviços</TabsTrigger>
               )}
               <TabsTrigger value="bookings">
-                📅 {user.tipo === 'morador' ? 'Meus Agendamentos' : 'Agendamentos Recebidos'}
+                📅 {user.tipo === 'morador' ? 'Agendamentos' : 'Recebidos'}
               </TabsTrigger>
             </TabsList>
+
+            {user.tipo === 'morador' && (
+              <TabsContent value="map" className="mt-6">
+                <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: '70vh' }}>
+                  <UberStyleMap user={user} />
+                </div>
+              </TabsContent>
+            )}
 
             {user.tipo === 'morador' && (
               <TabsContent value="services" className="space-y-4">
