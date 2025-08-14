@@ -301,7 +301,89 @@ backend:
           comment: "Webhook endpoint working correctly. Receives and processes Mercado Pago notifications properly."
 
 frontend:
-  # Frontend testing not performed as per instructions
+  - task: "Login as Morador User"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test login functionality for morador user (morador@test.com / 123456) - create if necessary"
+
+  - task: "Uber-Style Map Tab Access"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to verify if the '🗺️ Mapa' tab is visible and accessible in the dashboard for morador users"
+
+  - task: "UberStyleMap Component Functionality"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/UberStyleMap.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test: dark theme map, location permission request, nearby providers display, map loading correctly"
+
+  - task: "Map Filters and Categories"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/UberStyleMap.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test filter functionality by category (limpeza, eletrica, jardinagem, pintura, encanamento) and radius selection"
+
+  - task: "Provider List in Bottom Sheet"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/UberStyleMap.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test the bottom sheet provider list showing demo providers with their services and details"
+
+  - task: "Map Marker Interactions"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/UberStyleMap.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test clicking on map markers, popup display with provider information, and marker selection states"
+
+  - task: "Negotiate Button Functionality"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/UberStyleMap.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "testing"
+          comment: "Need to test the 'Negociar' button in popups and provider cards - should initiate chat/conversation functionality"
 
 metadata:
   created_by: "testing_agent"
