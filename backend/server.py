@@ -161,6 +161,33 @@ class ReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comentario: Optional[str] = None
 
+# Payment Models
+class PIXPaymentRequest(BaseModel):
+    booking_id: str
+    payer_email: str
+    payer_name: str
+    payer_identification: str
+    payer_identification_type: str = "CPF"
+
+class CreditCardPaymentRequest(BaseModel):
+    booking_id: str
+    card_token: str
+    installments: int = 1
+    payer_email: str
+    payer_name: str
+    payer_identification: str
+    payer_identification_type: str = "CPF"
+
+class PaymentResponse(BaseModel):
+    payment_id: str
+    status: str
+    payment_method: str
+    amount: float
+    qr_code: Optional[str] = None
+    qr_code_base64: Optional[str] = None
+    installments: Optional[int] = None
+    expiration_date: Optional[str] = None
+
 # Utility functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
