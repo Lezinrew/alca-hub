@@ -35,6 +35,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
+# Mercado Pago configuration
+MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+MERCADO_PAGO_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
+WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET')
+
 # Create the main app without a prefix
 app = FastAPI(title="Alça Hub API", description="Sistema de gestão de serviços para condomínios")
 
