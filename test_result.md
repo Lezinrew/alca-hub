@@ -392,9 +392,16 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Login as Morador User"
+    - "Uber-Style Map Tab Access"
+    - "UberStyleMap Component Functionality"
+    - "Map Filters and Categories"
+    - "Provider List in Bottom Sheet"
+    - "Map Marker Interactions"
+    - "Negotiate Button Functionality"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
