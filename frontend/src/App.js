@@ -769,6 +769,7 @@ const CreateServiceDialog = ({ onSuccess }) => {
 const BookingCard = ({ booking, onUpdate }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [showPayment, setShowPayment] = useState(false);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -781,6 +782,15 @@ const BookingCard = ({ booking, onUpdate }) => {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getPaymentStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-orange-100 text-orange-800',
+      paid: 'bg-green-100 text-green-800',
+      failed: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
   const getStatusText = (status) => {
     const texts = {
       pendente: 'Pendente',
@@ -788,6 +798,15 @@ const BookingCard = ({ booking, onUpdate }) => {
       em_andamento: 'Em Andamento',
       concluido: 'Concluído',
       cancelado: 'Cancelado'
+    };
+    return texts[status] || status;
+  };
+
+  const getPaymentStatusText = (status) => {
+    const texts = {
+      pending: 'Pagamento Pendente',
+      paid: 'Pagamento Aprovado',
+      failed: 'Pagamento Falhou'
     };
     return texts[status] || status;
   };
@@ -819,9 +838,14 @@ const BookingCard = ({ booking, onUpdate }) => {
               {new Date(booking.data_agendamento).toLocaleDateString('pt-BR')} • {booking.horario_inicio} - {booking.horario_fim}
             </p>
           </div>
-          <Badge className={getStatusColor(booking.status)}>
-            {getStatusText(booking.status)}
-          </Badge>
+          <div className="flex flex-col gap-2">
+            <Badge className={getStatusColor(booking.status)}>
+              {getStatusText(booking.status)}
+            </Badge>
+            <Badge className={getPaymentStatusColor(booking.payment_status)}>
+              {getPaymentStatusText(booking.payment_status)}
+            </Badge>
+          </div>
         </div>
         
         <div className="space-y-2">
@@ -830,6 +854,19 @@ const BookingCard = ({ booking, onUpdate }) => {
             <p className="text-sm"><strong>Observações:</strong> {booking.observacoes}</p>
           )}
         </div>
+
+        {/* Payment button for moradores */}
+        {user.tipo === 'morador' && booking.payment_status === 'pending' && (
+          <div className="mt-4">
+            <Button 
+              onClick={() => setShowPayment(true)}
+              className="w-full"
+              variant="default"
+            >
+              💳 Pagar Agendamento
+            </Button>
+          </div>
+        )}
 
         {user.tipo === 'prestador' && booking.status === 'pendente' && (
           <div className="flex gap-2 mt-4">
@@ -873,6 +910,15 @@ const BookingCard = ({ booking, onUpdate }) => {
               Finalizar Serviço
             </Button>
           </div>
+        )}
+
+        {/* Payment Modal */}
+        {showPayment && (
+          <PaymentModal 
+            booking={booking} 
+            onClose={() => setShowPayment(false)}
+            onSuccess={onUpdate}
+          />
         )}
       </CardContent>
     </Card>
