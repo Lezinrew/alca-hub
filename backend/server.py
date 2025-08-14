@@ -487,6 +487,307 @@ async def get_stats_overview(current_user: User = Depends(get_current_user)):
         "total_reviews": total_reviews
     }
 
+# Payment routes
+@api_router.post("/payments/pix", response_model=PaymentResponse)
+async def create_pix_payment(
+    payment_request: PIXPaymentRequest, 
+    current_user: User = Depends(get_current_user)
+):
+    """Create PIX payment for a booking"""
+    try:
+        # Get booking information
+        booking = await db.bookings.find_one({"id": payment_request.booking_id})
+        if not booking:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+        # Verify user owns the booking
+        if current_user.id != booking["morador_id"]:
+            raise HTTPException(status_code=403, detail="Sem permissão para pagar este agendamento")
+        
+        # Check if payment already exists
+        existing_payment = await db.payments.find_one({"booking_id": payment_request.booking_id})
+        if existing_payment:
+            raise HTTPException(status_code=400, detail="Pagamento já existe para este agendamento")
+        
+        # Get Mercado Pago SDK
+        mp_sdk = get_mercado_pago_sdk()
+        
+        # Calculate expiration (30 minutes from now)
+        expiration_date = datetime.utcnow() + timedelta(minutes=30)
+        
+        # Create payment data
+        payment_data = {
+            "transaction_amount": booking["preco_total"],
+            "description": f"Pagamento de serviço - Agendamento #{booking['id'][:8]}",
+            "external_reference": f"booking_{booking['id']}",
+            "payment_method_id": "pix",
+            "date_of_expiration": expiration_date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "payer": {
+                "email": payment_request.payer_email,
+                "first_name": payment_request.payer_name,
+                "identification": {
+                    "type": payment_request.payer_identification_type,
+                    "number": payment_request.payer_identification
+                }
+            }
+        }
+        
+        # Create payment with Mercado Pago
+        result = mp_sdk.payment().create(payment_data)
+        
+        if result["status"] == 201:
+            payment = result["response"]
+            
+            # Store payment in database
+            payment_record = {
+                "id": str(uuid.uuid4()),
+                "mercado_pago_id": str(payment["id"]),
+                "booking_id": payment_request.booking_id,
+                "user_id": current_user.id,
+                "amount": payment["transaction_amount"],
+                "payment_method": "pix",
+                "status": payment["status"],
+                "qr_code": payment["point_of_interaction"]["transaction_data"]["qr_code"],
+                "qr_code_base64": payment["point_of_interaction"]["transaction_data"]["qr_code_base64"],
+                "expiration_date": payment["date_of_expiration"],
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            
+            await db.payments.insert_one(payment_record)
+            
+            return PaymentResponse(
+                payment_id=str(payment["id"]),
+                status=payment["status"],
+                payment_method="pix",
+                amount=payment["transaction_amount"],
+                qr_code=payment["point_of_interaction"]["transaction_data"]["qr_code"],
+                qr_code_base64=payment["point_of_interaction"]["transaction_data"]["qr_code_base64"],
+                expiration_date=payment["date_of_expiration"]
+            )
+        else:
+            error_message = result.get("response", {}).get("message", "Erro desconhecido")
+            raise HTTPException(status_code=400, detail=f"Falha ao criar pagamento PIX: {error_message}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao criar pagamento PIX: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+
+@api_router.post("/payments/credit-card", response_model=PaymentResponse)
+async def create_credit_card_payment(
+    payment_request: CreditCardPaymentRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create credit card payment for a booking"""
+    try:
+        # Get booking information
+        booking = await db.bookings.find_one({"id": payment_request.booking_id})
+        if not booking:
+            raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+        
+        # Verify user owns the booking
+        if current_user.id != booking["morador_id"]:
+            raise HTTPException(status_code=403, detail="Sem permissão para pagar este agendamento")
+        
+        # Check if payment already exists
+        existing_payment = await db.payments.find_one({"booking_id": payment_request.booking_id})
+        if existing_payment:
+            raise HTTPException(status_code=400, detail="Pagamento já existe para este agendamento")
+        
+        # Get Mercado Pago SDK
+        mp_sdk = get_mercado_pago_sdk()
+        
+        # Create payment data
+        payment_data = {
+            "transaction_amount": booking["preco_total"],
+            "token": payment_request.card_token,
+            "description": f"Pagamento de serviço - Agendamento #{booking['id'][:8]}",
+            "external_reference": f"booking_{booking['id']}",
+            "installments": payment_request.installments,
+            "payer": {
+                "email": payment_request.payer_email,
+                "identification": {
+                    "type": payment_request.payer_identification_type,
+                    "number": payment_request.payer_identification
+                },
+                "first_name": payment_request.payer_name
+            }
+        }
+        
+        # Create payment with Mercado Pago
+        result = mp_sdk.payment().create(payment_data)
+        
+        if result["status"] == 201:
+            payment = result["response"]
+            
+            # Store payment in database
+            payment_record = {
+                "id": str(uuid.uuid4()),
+                "mercado_pago_id": str(payment["id"]),
+                "booking_id": payment_request.booking_id,
+                "user_id": current_user.id,
+                "amount": payment["transaction_amount"],
+                "payment_method": "credit_card",
+                "status": payment["status"],
+                "installments": payment.get("installments", 1),
+                "card_last_four": payment.get("card", {}).get("last_four_digits"),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            
+            await db.payments.insert_one(payment_record)
+            
+            return PaymentResponse(
+                payment_id=str(payment["id"]),
+                status=payment["status"],
+                payment_method="credit_card",
+                amount=payment["transaction_amount"],
+                installments=payment.get("installments", 1)
+            )
+        else:
+            error_message = result.get("response", {}).get("message", "Erro desconhecido")
+            raise HTTPException(status_code=400, detail=f"Falha ao criar pagamento: {error_message}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao criar pagamento com cartão: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+
+@api_router.get("/payments/{payment_id}/status")
+async def get_payment_status(
+    payment_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get payment status from Mercado Pago"""
+    try:
+        # Get payment from database
+        payment = await db.payments.find_one({"mercado_pago_id": payment_id})
+        if not payment:
+            raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+        
+        # Verify user owns the payment
+        if current_user.id != payment["user_id"]:
+            raise HTTPException(status_code=403, detail="Sem permissão para visualizar este pagamento")
+        
+        # Get latest status from Mercado Pago
+        mp_sdk = get_mercado_pago_sdk()
+        result = mp_sdk.payment().get(payment_id)
+        
+        if result["status"] == 200:
+            mp_payment = result["response"]
+            
+            # Update status in database if changed
+            if mp_payment["status"] != payment["status"]:
+                await db.payments.update_one(
+                    {"mercado_pago_id": payment_id},
+                    {
+                        "$set": {
+                            "status": mp_payment["status"],
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+            
+            return {
+                "payment_id": payment_id,
+                "status": mp_payment["status"],
+                "status_detail": mp_payment.get("status_detail"),
+                "amount": mp_payment["transaction_amount"],
+                "payment_method": payment["payment_method"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Erro ao consultar status do pagamento")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao consultar status do pagamento: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor")
+
+@api_router.post("/webhooks/mercadopago")
+async def handle_mercadopago_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+    """Handle Mercado Pago webhook notifications"""
+    try:
+        # Get signature and body
+        signature = request.headers.get("x-signature", "")
+        body = await request.body()
+        
+        # Validate webhook signature (simplified for demo)
+        # In production, implement proper signature validation
+        
+        # Parse webhook payload
+        payload = json.loads(body)
+        
+        # Extract event information
+        event_type = payload.get("type")
+        data_id = payload.get("data", {}).get("id")
+        
+        if event_type == "payment":
+            # Process payment webhook in background
+            background_tasks.add_task(process_payment_webhook, data_id)
+        
+        return {"status": "received"}
+        
+    except Exception as e:
+        logger.error(f"Erro ao processar webhook: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao processar webhook")
+
+async def process_payment_webhook(payment_id: str):
+    """Process payment webhook notification"""
+    try:
+        # Get payment from Mercado Pago
+        mp_sdk = get_mercado_pago_sdk()
+        result = mp_sdk.payment().get(payment_id)
+        
+        if result["status"] == 200:
+            payment_data = result["response"]
+            
+            # Update payment status in database
+            await db.payments.update_one(
+                {"mercado_pago_id": str(payment_id)},
+                {
+                    "$set": {
+                        "status": payment_data["status"],
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            # If payment is approved, update booking status
+            if payment_data["status"] == "approved":
+                payment_record = await db.payments.find_one({"mercado_pago_id": str(payment_id)})
+                if payment_record:
+                    await db.bookings.update_one(
+                        {"id": payment_record["booking_id"]},
+                        {
+                            "$set": {
+                                "payment_status": "paid",
+                                "updated_at": datetime.utcnow()
+                            }
+                        }
+                    )
+            
+            logger.info(f"Pagamento {payment_id} atualizado para status {payment_data['status']}")
+        else:
+            logger.error(f"Erro ao buscar pagamento {payment_id} no Mercado Pago")
+            
+    except Exception as e:
+        logger.error(f"Erro ao processar webhook do pagamento: {str(e)}")
+
+@api_router.get("/mercadopago/public-key")
+async def get_mercadopago_public_key():
+    """Get Mercado Pago public key for frontend"""
+    if not MERCADO_PAGO_PUBLIC_KEY:
+        raise HTTPException(status_code=500, detail="Mercado Pago não configurado")
+    
+    return {"public_key": MERCADO_PAGO_PUBLIC_KEY}
+
 # Include the router in the main app
 app.include_router(api_router)
 
