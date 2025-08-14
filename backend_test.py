@@ -517,6 +517,114 @@ class AlcaHubTester:
         except Exception as e:
             self.log_test("Webhook Endpoint", False, f"Exception: {str(e)}")
 
+    def test_pix_demo_mode_auto_approval(self):
+        """Test PIX payment demo mode with auto-approval after 30 seconds"""
+        print("\n=== TESTING PIX DEMO MODE AUTO-APPROVAL ===")
+        
+        if not self.morador_token:
+            self.log_test("PIX Demo Mode Auto-Approval", False, "No morador token available")
+            return
+            
+        if not self.booking_id:
+            self.log_test("PIX Demo Mode Auto-Approval", False, "No booking ID available")
+            return
+            
+        # Create a new booking specifically for payment testing
+        tomorrow = datetime.now() + timedelta(days=1)
+        
+        booking_data = {
+            "service_id": self.service_id,
+            "data_agendamento": tomorrow.isoformat(),
+            "horario_inicio": "14:00",
+            "horario_fim": "16:00",
+            "observacoes": "Teste de pagamento PIX em modo demo"
+        }
+        
+        headers = {"Authorization": f"Bearer {self.morador_token}"}
+        
+        # Create new booking for payment test
+        try:
+            response = self.session.post(f"{API_BASE_URL}/bookings", json=booking_data, headers=headers)
+            if response.status_code != 200:
+                self.log_test("PIX Demo Mode Auto-Approval", False, f"Failed to create test booking: {response.status_code}")
+                return
+            
+            test_booking_id = response.json()['id']
+            print(f"   Created test booking: {test_booking_id}")
+            
+        except Exception as e:
+            self.log_test("PIX Demo Mode Auto-Approval", False, f"Exception creating test booking: {str(e)}")
+            return
+        
+        # Create PIX payment
+        payment_data = {
+            "booking_id": test_booking_id,
+            "payer_email": "maria.silva@email.com",
+            "payer_name": "Maria Silva",
+            "payer_identification": "12345678901",
+            "payer_identification_type": "CPF"
+        }
+        
+        try:
+            print("   Creating PIX payment...")
+            response = self.session.post(f"{API_BASE_URL}/payments/pix", json=payment_data, headers=headers)
+            if response.status_code != 200:
+                self.log_test("PIX Demo Mode Auto-Approval", False, f"Failed to create PIX payment: {response.status_code}")
+                return
+                
+            payment_response = response.json()
+            demo_payment_id = payment_response.get('payment_id')
+            initial_status = payment_response.get('status')
+            
+            print(f"   PIX payment created: {demo_payment_id}")
+            print(f"   Initial status: {initial_status}")
+            print(f"   QR Code available: {'Yes' if payment_response.get('qr_code') else 'No'}")
+            
+            if initial_status != 'pending':
+                self.log_test("PIX Demo Mode Auto-Approval", False, f"Expected initial status 'pending', got '{initial_status}'")
+                return
+            
+            # Wait for auto-approval (30+ seconds)
+            print("   Waiting 35 seconds for demo auto-approval...")
+            import time
+            time.sleep(35)
+            
+            # Check payment status after waiting
+            print("   Checking payment status after auto-approval delay...")
+            status_response = self.session.get(f"{API_BASE_URL}/payments/{demo_payment_id}/status", headers=headers)
+            
+            if status_response.status_code != 200:
+                self.log_test("PIX Demo Mode Auto-Approval", False, f"Failed to check payment status: {status_response.status_code}")
+                return
+                
+            status_data = status_response.json()
+            final_status = status_data.get('status')
+            
+            print(f"   Final payment status: {final_status}")
+            
+            # Check if payment was auto-approved
+            if final_status == 'approved':
+                # Check if booking payment status was updated
+                booking_response = self.session.get(f"{API_BASE_URL}/bookings", headers=headers)
+                if booking_response.status_code == 200:
+                    bookings = booking_response.json()
+                    test_booking = next((b for b in bookings if b['id'] == test_booking_id), None)
+                    
+                    if test_booking and test_booking.get('payment_status') == 'paid':
+                        self.log_test("PIX Demo Mode Auto-Approval", True, 
+                                    f"Payment auto-approved and booking marked as paid. Payment ID: {demo_payment_id}")
+                    else:
+                        self.log_test("PIX Demo Mode Auto-Approval", False, 
+                                    f"Payment approved but booking not marked as paid. Booking status: {test_booking.get('payment_status') if test_booking else 'not found'}")
+                else:
+                    self.log_test("PIX Demo Mode Auto-Approval", False, "Failed to retrieve booking status")
+            else:
+                self.log_test("PIX Demo Mode Auto-Approval", False, 
+                            f"Payment not auto-approved after 35 seconds. Status: {final_status}")
+                
+        except Exception as e:
+            self.log_test("PIX Demo Mode Auto-Approval", False, f"Exception during demo test: {str(e)}")
+
     def test_payment_integration_flow(self):
         """Test complete payment integration flow"""
         print("\n=== TESTING PAYMENT INTEGRATION FLOW ===")
