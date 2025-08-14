@@ -602,6 +602,14 @@ class AlcaHubTester:
         self.test_review_creation()
         self.test_service_reviews()
         
+        # Payment tests (Mercado Pago integration)
+        self.test_mercadopago_public_key()
+        self.test_pix_payment_creation()
+        self.test_payment_status_check()
+        self.test_credit_card_payment_structure()
+        self.test_webhook_endpoint()
+        self.test_payment_integration_flow()
+        
         # Summary
         self.print_summary()
         
