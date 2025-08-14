@@ -1231,6 +1231,198 @@ async def send_message(
         logger.error(f"Erro ao enviar mensagem: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro ao enviar mensagem")
 
+@api_router.post("/demo/populate-providers")
+async def populate_demo_providers():
+    """Populate database with demo service providers for testing"""
+    try:
+        # São Paulo coordinates for demo providers
+        demo_providers = [
+            {
+                "id": str(uuid.uuid4()),
+                "email": "joao.limpeza@demo.com",
+                "cpf": "11111111111",
+                "nome": "João Silva - Limpeza",
+                "telefone": "(11) 99999-1111",
+                "endereco": "Vila Madalena, São Paulo",
+                "tipo": "prestador",
+                "latitude": -23.5505,
+                "longitude": -46.6833,
+                "disponivel": True,
+                "ativo": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "email": "maria.eletrica@demo.com", 
+                "cpf": "22222222222",
+                "nome": "Maria Santos - Elétrica",
+                "telefone": "(11) 99999-2222",
+                "endereco": "Pinheiros, São Paulo",
+                "tipo": "prestador",
+                "latitude": -23.5616,
+                "longitude": -46.6731,
+                "disponivel": True,
+                "ativo": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "email": "carlos.jardinagem@demo.com",
+                "cpf": "33333333333", 
+                "nome": "Carlos Oliveira - Jardim",
+                "telefone": "(11) 99999-3333",
+                "endereco": "Jardim Paulista, São Paulo",
+                "tipo": "prestador",
+                "latitude": -23.5729,
+                "longitude": -46.6565,
+                "disponivel": True,
+                "ativo": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "email": "ana.pintura@demo.com",
+                "cpf": "44444444444",
+                "nome": "Ana Costa - Pintura", 
+                "telefone": "(11) 99999-4444",
+                "endereco": "Itaim Bibi, São Paulo",
+                "tipo": "prestador",
+                "latitude": -23.5900,
+                "longitude": -46.6782,
+                "disponivel": True,
+                "ativo": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "email": "pedro.encanamento@demo.com",
+                "cpf": "55555555555",
+                "nome": "Pedro Lima - Encanamento",
+                "telefone": "(11) 99999-5555", 
+                "endereco": "Moema, São Paulo",
+                "tipo": "prestador",
+                "latitude": -23.6104,
+                "longitude": -46.6628,
+                "disponivel": True,
+                "ativo": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ]
+
+        # Add password hash to each provider
+        hashed_password = get_password_hash("demo123")
+        for provider in demo_providers:
+            provider["password"] = hashed_password
+
+        # Insert providers
+        await db.users.insert_many(demo_providers)
+
+        # Create demo services for each provider
+        demo_services = [
+            {
+                "id": str(uuid.uuid4()),
+                "prestador_id": demo_providers[0]["id"],
+                "nome": "Limpeza Residencial Completa",
+                "descricao": "Limpeza completa de residências, incluindo banheiros, cozinha e quartos",
+                "categoria": "limpeza",
+                "preco_por_hora": 45.0,
+                "disponibilidade": ["segunda", "terca", "quarta", "quinta", "sexta"],
+                "horario_inicio": "08:00",
+                "horario_fim": "17:00",
+                "status": "disponivel",
+                "avaliacoes": [],
+                "media_avaliacoes": 4.8,
+                "total_avaliacoes": 23,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "prestador_id": demo_providers[1]["id"],
+                "nome": "Instalação e Reparo Elétrico",
+                "descricao": "Instalação de tomadas, interruptores, luminárias e reparo de problemas elétricos",
+                "categoria": "eletrica",
+                "preco_por_hora": 80.0,
+                "disponibilidade": ["segunda", "terca", "quarta", "quinta", "sexta"],
+                "horario_inicio": "08:00",
+                "horario_fim": "18:00",
+                "status": "disponivel",
+                "avaliacoes": [],
+                "media_avaliacoes": 4.9,
+                "total_avaliacoes": 31,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "prestador_id": demo_providers[2]["id"],
+                "nome": "Jardinagem e Paisagismo",
+                "descricao": "Cuidado de jardins, poda de plantas, plantio e manutenção de áreas verdes",
+                "categoria": "jardinagem",
+                "preco_por_hora": 55.0,
+                "disponibilidade": ["terca", "quarta", "quinta", "sexta", "sabado"],
+                "horario_inicio": "07:00",
+                "horario_fim": "16:00",
+                "status": "disponivel",
+                "avaliacoes": [],
+                "media_avaliacoes": 4.7,
+                "total_avaliacoes": 18,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "prestador_id": demo_providers[3]["id"],
+                "nome": "Pintura Residencial",
+                "descricao": "Pintura interna e externa, textura, verniz e acabamentos especiais",
+                "categoria": "pintura",
+                "preco_por_hora": 65.0,
+                "disponibilidade": ["segunda", "terca", "quarta", "quinta", "sexta"],
+                "horario_inicio": "08:00",
+                "horario_fim": "17:00",
+                "status": "disponivel",
+                "avaliacoes": [],
+                "media_avaliacoes": 4.6,
+                "total_avaliacoes": 15,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "prestador_id": demo_providers[4]["id"],
+                "nome": "Encanamento e Hidráulica",
+                "descricao": "Reparo de vazamentos, instalação de torneiras, desentupimento e manutenção hidráulica",
+                "categoria": "encanamento",
+                "preco_por_hora": 75.0,
+                "disponibilidade": ["segunda", "terca", "quarta", "quinta", "sexta", "sabado"],
+                "horario_inicio": "08:00",
+                "horario_fim": "18:00",
+                "status": "disponivel",
+                "avaliacoes": [],
+                "media_avaliacoes": 4.8,
+                "total_avaliacoes": 27,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ]
+
+        await db.services.insert_many(demo_services)
+
+        return {
+            "message": "Dados demo criados com sucesso!",
+            "providers_created": len(demo_providers),
+            "services_created": len(demo_services)
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao criar dados demo: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao criar dados demo")
+
 # Include the router in the main app
 app.include_router(api_router)
 
