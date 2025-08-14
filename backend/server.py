@@ -737,7 +737,7 @@ async def get_payment_status(
     payment_id: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get payment status from Mercado Pago"""
+    """Get payment status from Mercado Pago or demo mode"""
     try:
         # Get payment from database
         payment = await db.payments.find_one({"mercado_pago_id": payment_id})
@@ -748,34 +748,45 @@ async def get_payment_status(
         if current_user.id != payment["user_id"]:
             raise HTTPException(status_code=403, detail="Sem permissão para visualizar este pagamento")
         
-        # Get latest status from Mercado Pago
-        mp_sdk = get_mercado_pago_sdk()
-        result = mp_sdk.payment().get(payment_id)
-        
-        if result["status"] == 200:
-            mp_payment = result["response"]
-            
-            # Update status in database if changed
-            if mp_payment["status"] != payment["status"]:
-                await db.payments.update_one(
-                    {"mercado_pago_id": payment_id},
-                    {
-                        "$set": {
-                            "status": mp_payment["status"],
-                            "updated_at": datetime.utcnow()
-                        }
-                    }
-                )
-            
+        # Check if this is a demo payment
+        if payment.get("demo_mode", False):
+            # For demo payments, return status from database
             return {
                 "payment_id": payment_id,
-                "status": mp_payment["status"],
-                "status_detail": mp_payment.get("status_detail"),
-                "amount": mp_payment["transaction_amount"],
+                "status": payment["status"],
+                "status_detail": "Demo payment - auto processed",
+                "amount": payment["amount"],
                 "payment_method": payment["payment_method"]
             }
         else:
-            raise HTTPException(status_code=400, detail="Erro ao consultar status do pagamento")
+            # Get latest status from Mercado Pago for real payments
+            mp_sdk = get_mercado_pago_sdk()
+            result = mp_sdk.payment().get(payment_id)
+            
+            if result["status"] == 200:
+                mp_payment = result["response"]
+                
+                # Update status in database if changed
+                if mp_payment["status"] != payment["status"]:
+                    await db.payments.update_one(
+                        {"mercado_pago_id": payment_id},
+                        {
+                            "$set": {
+                                "status": mp_payment["status"],
+                                "updated_at": datetime.utcnow()
+                            }
+                        }
+                    )
+                
+                return {
+                    "payment_id": payment_id,
+                    "status": mp_payment["status"],
+                    "status_detail": mp_payment.get("status_detail"),
+                    "amount": mp_payment["transaction_amount"],
+                    "payment_method": payment["payment_method"]
+                }
+            else:
+                raise HTTPException(status_code=400, detail="Erro ao consultar status do pagamento")
             
     except HTTPException:
         raise
