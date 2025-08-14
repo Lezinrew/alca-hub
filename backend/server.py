@@ -224,6 +224,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     return User(**user)
 
+def get_mercado_pago_sdk():
+    """Get configured Mercado Pago SDK instance"""
+    if not MERCADO_PAGO_ACCESS_TOKEN:
+        raise HTTPException(status_code=500, detail="Mercado Pago not configured")
+    return mercadopago.SDK(MERCADO_PAGO_ACCESS_TOKEN)
+
 # Authentication routes
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
