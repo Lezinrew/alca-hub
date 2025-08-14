@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -13,6 +13,10 @@ from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
 from enum import Enum
+import mercadopago
+import hmac
+import hashlib
+import json
 
 
 ROOT_DIR = Path(__file__).parent
