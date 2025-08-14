@@ -374,6 +374,209 @@ class AlcaHubTester:
                 self.log_test("Service Reviews", False, f"Status: {response.status_code}")
         except Exception as e:
             self.log_test("Service Reviews", False, f"Exception: {str(e)}")
+
+    def test_mercadopago_public_key(self):
+        """Test getting Mercado Pago public key"""
+        print("\n=== TESTING MERCADO PAGO PUBLIC KEY ===")
+        
+        try:
+            response = self.session.get(f"{API_BASE_URL}/mercadopago/public-key")
+            if response.status_code == 200:
+                data = response.json()
+                if 'public_key' in data and data['public_key']:
+                    self.log_test("Mercado Pago Public Key", True, f"Key: {data['public_key'][:20]}...")
+                else:
+                    self.log_test("Mercado Pago Public Key", False, "No public key in response")
+            else:
+                self.log_test("Mercado Pago Public Key", False, f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            self.log_test("Mercado Pago Public Key", False, f"Exception: {str(e)}")
+
+    def test_pix_payment_creation(self):
+        """Test PIX payment creation for a booking"""
+        print("\n=== TESTING PIX PAYMENT CREATION ===")
+        
+        if not self.morador_token:
+            self.log_test("PIX Payment Creation", False, "No morador token available")
+            return
+            
+        if not self.booking_id:
+            self.log_test("PIX Payment Creation", False, "No booking ID available")
+            return
+            
+        payment_data = {
+            "booking_id": self.booking_id,
+            "payer_email": "maria.silva@email.com",
+            "payer_name": "Maria Silva",
+            "payer_identification": "12345678901",
+            "payer_identification_type": "CPF"
+        }
+        
+        headers = {"Authorization": f"Bearer {self.morador_token}"}
+        
+        try:
+            response = self.session.post(f"{API_BASE_URL}/payments/pix", json=payment_data, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                self.payment_id = data.get('payment_id')
+                self.log_test("PIX Payment Creation", True, 
+                            f"Payment ID: {self.payment_id}, Status: {data.get('status')}, Amount: R${data.get('amount')}")
+                if data.get('qr_code'):
+                    print(f"   QR Code: {data['qr_code'][:50]}...")
+            else:
+                self.log_test("PIX Payment Creation", False, f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            self.log_test("PIX Payment Creation", False, f"Exception: {str(e)}")
+
+    def test_payment_status_check(self):
+        """Test payment status checking"""
+        print("\n=== TESTING PAYMENT STATUS CHECK ===")
+        
+        if not self.morador_token:
+            self.log_test("Payment Status Check", False, "No morador token available")
+            return
+            
+        if not hasattr(self, 'payment_id') or not self.payment_id:
+            self.log_test("Payment Status Check", False, "No payment ID available")
+            return
+            
+        headers = {"Authorization": f"Bearer {self.morador_token}"}
+        
+        try:
+            response = self.session.get(f"{API_BASE_URL}/payments/{self.payment_id}/status", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                self.log_test("Payment Status Check", True, 
+                            f"Payment ID: {data.get('payment_id')}, Status: {data.get('status')}, Amount: R${data.get('amount')}")
+            else:
+                self.log_test("Payment Status Check", False, f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            self.log_test("Payment Status Check", False, f"Exception: {str(e)}")
+
+    def test_credit_card_payment_structure(self):
+        """Test credit card payment endpoint structure (without actual payment)"""
+        print("\n=== TESTING CREDIT CARD PAYMENT STRUCTURE ===")
+        
+        if not self.morador_token:
+            self.log_test("Credit Card Payment Structure", False, "No morador token available")
+            return
+            
+        if not self.booking_id:
+            self.log_test("Credit Card Payment Structure", False, "No booking ID available")
+            return
+            
+        # Test with invalid card token to check endpoint structure
+        payment_data = {
+            "booking_id": self.booking_id,
+            "card_token": "test_card_token_invalid",
+            "installments": 1,
+            "payer_email": "maria.silva@email.com",
+            "payer_name": "Maria Silva",
+            "payer_identification": "12345678901",
+            "payer_identification_type": "CPF"
+        }
+        
+        headers = {"Authorization": f"Bearer {self.morador_token}"}
+        
+        try:
+            response = self.session.post(f"{API_BASE_URL}/payments/credit-card", json=payment_data, headers=headers)
+            # We expect this to fail with invalid token, but endpoint should exist
+            if response.status_code in [400, 422]:  # Bad request due to invalid token
+                self.log_test("Credit Card Payment Structure", True, 
+                            f"Endpoint exists and validates input (Status: {response.status_code})")
+            elif response.status_code == 200:
+                self.log_test("Credit Card Payment Structure", True, "Endpoint working (unexpected success)")
+            else:
+                self.log_test("Credit Card Payment Structure", False, f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            self.log_test("Credit Card Payment Structure", False, f"Exception: {str(e)}")
+
+    def test_webhook_endpoint(self):
+        """Test webhook endpoint structure"""
+        print("\n=== TESTING WEBHOOK ENDPOINT ===")
+        
+        # Test webhook with sample payload
+        webhook_payload = {
+            "type": "payment",
+            "data": {
+                "id": "test_payment_id_123"
+            }
+        }
+        
+        try:
+            response = self.session.post(f"{API_BASE_URL}/webhooks/mercadopago", json=webhook_payload)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'received':
+                    self.log_test("Webhook Endpoint", True, "Webhook received and processed")
+                else:
+                    self.log_test("Webhook Endpoint", False, f"Unexpected response: {data}")
+            else:
+                self.log_test("Webhook Endpoint", False, f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            self.log_test("Webhook Endpoint", False, f"Exception: {str(e)}")
+
+    def test_payment_integration_flow(self):
+        """Test complete payment integration flow"""
+        print("\n=== TESTING PAYMENT INTEGRATION FLOW ===")
+        
+        # This is a comprehensive test that combines multiple payment operations
+        flow_success = True
+        flow_details = []
+        
+        # Step 1: Get public key
+        try:
+            response = self.session.get(f"{API_BASE_URL}/mercadopago/public-key")
+            if response.status_code == 200:
+                flow_details.append("✓ Public key retrieved")
+            else:
+                flow_success = False
+                flow_details.append("✗ Failed to get public key")
+        except Exception as e:
+            flow_success = False
+            flow_details.append(f"✗ Public key error: {str(e)}")
+        
+        # Step 2: Create PIX payment (if we have booking)
+        if self.booking_id and self.morador_token:
+            payment_data = {
+                "booking_id": self.booking_id,
+                "payer_email": "maria.silva@email.com",
+                "payer_name": "Maria Silva",
+                "payer_identification": "12345678901",
+                "payer_identification_type": "CPF"
+            }
+            
+            headers = {"Authorization": f"Bearer {self.morador_token}"}
+            
+            try:
+                response = self.session.post(f"{API_BASE_URL}/payments/pix", json=payment_data, headers=headers)
+                if response.status_code == 200:
+                    flow_details.append("✓ PIX payment created")
+                    payment_data = response.json()
+                    payment_id = payment_data.get('payment_id')
+                    
+                    # Step 3: Check payment status
+                    if payment_id:
+                        try:
+                            status_response = self.session.get(f"{API_BASE_URL}/payments/{payment_id}/status", headers=headers)
+                            if status_response.status_code == 200:
+                                flow_details.append("✓ Payment status checked")
+                            else:
+                                flow_success = False
+                                flow_details.append("✗ Failed to check payment status")
+                        except Exception as e:
+                            flow_success = False
+                            flow_details.append(f"✗ Status check error: {str(e)}")
+                else:
+                    flow_success = False
+                    flow_details.append("✗ Failed to create PIX payment")
+            except Exception as e:
+                flow_success = False
+                flow_details.append(f"✗ PIX payment error: {str(e)}")
+        else:
+            flow_details.append("⚠ Skipped PIX payment (no booking/token)")
+        
+        self.log_test("Payment Integration Flow", flow_success, "; ".join(flow_details))
             
     def run_all_tests(self):
         """Run all tests in sequence"""
