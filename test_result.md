@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Por favor, teste o sistema completo do Alça Hub agora que implementei o modo demo para pagamentos PIX. Funcionalidades a testar: 1. Fluxo completo de pagamento PIX em modo demo, 2. Endpoints de pagamento, 3. Funcionalidades existentes"
+user_problem_statement: "Por favor, teste a nova funcionalidade de Mapa estilo Uber que implementei no Alça Hub. Funcionalidades a testar: 1. Login como morador (morador@test.com / 123456), 2. Acessar aba 'Mapa', 3. Testar funcionalidades do mapa (tema escuro, localização, prestadores próximos, filtros), 4. Testar interações (marcadores, popup, botão Negociar). Prestadores demo: João Silva-Limpeza, Maria Santos-Elétrica, Carlos Oliveira-Jardinagem, Ana Costa-Pintura, Pedro Lima-Encanamento"
 
 backend:
   - task: "User Registration (Morador and Prestador)"
