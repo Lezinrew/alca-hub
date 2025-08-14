@@ -931,6 +931,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
   const [qrCodeVisible, setQrCodeVisible] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('pending');
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -950,8 +951,8 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
       setQrCodeVisible(true);
       
       toast({
-        title: "PIX gerado com sucesso!",
-        description: "Use o código PIX para realizar o pagamento",
+        title: "PIX gerado com sucesso! 🎉",
+        description: "Escaneie o QR Code ou copie o código PIX para pagar",
       });
 
       // Start polling payment status
@@ -971,19 +972,31 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     const pollInterval = setInterval(async () => {
       try {
         const response = await axios.get(`${API}/payments/${paymentId}/status`);
-        if (response.data.status === 'approved') {
+        const status = response.data.status;
+        setPaymentStatus(status);
+        
+        if (status === 'approved') {
           clearInterval(pollInterval);
           toast({
-            title: "Pagamento aprovado! 🎉",
-            description: "Seu pagamento foi processado com sucesso",
+            title: "Pagamento aprovado! 🎉✅",
+            description: "Seu pagamento foi processado com sucesso!",
           });
-          onSuccess();
-          onClose();
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+        } else if (status === 'rejected' || status === 'cancelled') {
+          clearInterval(pollInterval);
+          toast({
+            variant: "destructive",
+            title: "Pagamento não autorizado",
+            description: "Houve um problema com seu pagamento. Tente novamente.",
+          });
         }
       } catch (error) {
         console.error('Erro ao verificar status do pagamento:', error);
       }
-    }, 3000); // Poll every 3 seconds
+    }, 2000); // Poll every 2 seconds
 
     // Stop polling after 10 minutes
     setTimeout(() => clearInterval(pollInterval), 600000);
@@ -993,9 +1006,52 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     if (paymentData?.qr_code) {
       navigator.clipboard.writeText(paymentData.qr_code);
       toast({
-        title: "Código PIX copiado!",
+        title: "Código PIX copiado! 📋",
         description: "Cole no app do seu banco para pagar",
       });
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'approved':
+        return '✅';
+      case 'pending':
+        return '⏳';
+      case 'rejected':
+      case 'cancelled':
+        return '❌';
+      default:
+        return '⏳';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'approved':
+        return 'Pagamento Aprovado!';
+      case 'pending':
+        return 'Aguardando Pagamento...';
+      case 'rejected':
+        return 'Pagamento Rejeitado';
+      case 'cancelled':
+        return 'Pagamento Cancelado';
+      default:
+        return 'Processando...';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'approved':
+        return 'text-green-600 bg-green-50';
+      case 'pending':
+        return 'text-blue-600 bg-blue-50';
+      case 'rejected':
+      case 'cancelled':
+        return 'text-red-600 bg-red-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
     }
   };
 
@@ -1003,9 +1059,12 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Pagamento do Agendamento</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Pagamento do Agendamento
+          </DialogTitle>
           <DialogDescription>
-            Valor: R$ {booking.preco_total.toFixed(2)}
+            Valor: <span className="font-semibold text-green-600">R$ {booking.preco_total.toFixed(2)}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -1019,39 +1078,61 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pix">PIX (Instantâneo)</SelectItem>
-                    <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                    <SelectItem value="pix">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-blue-600" />
+                        PIX (Instantâneo)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="credit_card">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-gray-600" />
+                        Cartão de Crédito
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {paymentMethod === 'pix' && (
                 <div className="text-center space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border">
+                    <Zap className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                     <h3 className="font-semibold text-blue-900">Pagamento PIX</h3>
                     <p className="text-sm text-blue-700">
-                      Pagamento instantâneo e seguro via PIX
+                      Transferência instantâneo e segura via PIX
                     </p>
+                    <div className="mt-2 text-xs text-blue-600">
+                      ⚡ Aprovação em segundos • 🔒 100% Seguro
+                    </div>
                   </div>
                   <Button 
                     onClick={handlePIXPayment} 
                     disabled={loading}
-                    className="w-full"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                   >
-                    {loading ? "Gerando PIX..." : "🏦 Gerar PIX"}
+                    {loading ? (
+                      <>⏳ Gerando PIX...</>
+                    ) : (
+                      <>🏦 Gerar PIX</>
+                    )}
                   </Button>
                 </div>
               )}
 
               {paymentMethod === 'credit_card' && (
                 <div className="text-center space-y-4">
-                  <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-4 rounded-lg border">
+                    <CreditCard className="h-8 w-8 text-orange-600 mx-auto mb-2" />
                     <h3 className="font-semibold text-orange-900">Cartão de Crédito</h3>
                     <p className="text-sm text-orange-700">
                       Em breve: Pagamento parcelado em até 12x
                     </p>
+                    <div className="mt-2 text-xs text-orange-600">
+                      🚧 Funcionalidade em desenvolvimento
+                    </div>
                   </div>
-                  <Button disabled className="w-full">
+                  <Button disabled className="w-full bg-gray-400">
                     💳 Em breve
                   </Button>
                 </div>
@@ -1060,38 +1141,63 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
           ) : (
             <div className="space-y-4">
               <div className="text-center">
-                <h3 className="font-semibold text-green-700 mb-2">PIX Gerado com Sucesso!</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Escaneie o QR Code ou copie o código para pagar
-                </p>
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(paymentStatus)}`}>
+                  <span className="text-lg">{getStatusIcon(paymentStatus)}</span>
+                  {getStatusText(paymentStatus)}
+                </div>
+                {paymentStatus === 'pending' && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Escaneie o QR Code ou copie o código para pagar
+                  </p>
+                )}
               </div>
 
-              {paymentData?.qr_code_base64 && (
+              {paymentData?.qr_code && paymentStatus === 'pending' && (
                 <div className="flex justify-center mb-4">
-                  <img 
-                    src={`data:image/png;base64,${paymentData.qr_code_base64}`}
-                    alt="QR Code PIX"
-                    className="w-48 h-48 border rounded-lg"
-                  />
+                  <div className="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-sm">
+                    <QRCode 
+                      value={paymentData.qr_code}
+                      size={200}
+                      level="M"
+                      includeMargin={true}
+                    />
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Button onClick={copyPIXCode} variant="outline" className="w-full">
-                  📋 Copiar Código PIX
-                </Button>
-                <div className="text-xs text-gray-500 text-center">
-                  <p>⏰ Expira em: {new Date(paymentData?.expiration_date).toLocaleString('pt-BR')}</p>
-                  <p className="mt-2">🔄 Aguardando pagamento...</p>
+              {paymentStatus === 'approved' && (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">🎉</div>
+                  <h3 className="text-lg font-semibold text-green-600 mb-2">
+                    Pagamento Aprovado!
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Seu pagamento foi processado com sucesso.
+                  </p>
                 </div>
-              </div>
+              )}
+
+              {paymentStatus === 'pending' && (
+                <div className="space-y-2">
+                  <Button onClick={copyPIXCode} variant="outline" className="w-full">
+                    📋 Copiar Código PIX
+                  </Button>
+                  <div className="text-xs text-gray-500 text-center space-y-1">
+                    <p>⏰ Expira em: {new Date(paymentData?.expiration_date).toLocaleString('pt-BR')}</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <div className="animate-pulse h-2 w-2 bg-blue-600 rounded-full"></div>
+                      <span>Aguardando confirmação do pagamento...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {qrCodeVisible ? "Fechar" : "Cancelar"}
+            {paymentStatus === 'approved' ? "Concluir" : qrCodeVisible ? "Fechar" : "Cancelar"}
           </Button>
         </DialogFooter>
       </DialogContent>
