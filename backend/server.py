@@ -133,6 +133,7 @@ class Booking(BaseModel):
     preco_total: float
     observacoes: Optional[str] = None
     status: BookingStatus = BookingStatus.PENDENTE
+    payment_status: str = "pending"  # pending, paid, failed
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
