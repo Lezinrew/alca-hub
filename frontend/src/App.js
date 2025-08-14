@@ -346,6 +346,7 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [myServices, setMyServices] = useState([]);
   const [stats, setStats] = useState(null);
+  const [activeTab, setActiveTab] = useState('inicio');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -413,232 +414,101 @@ const Dashboard = () => {
       .reduce((total, booking) => total + booking.preco_total, 0);
   };
 
+  // Bottom navigation menu items
+  const getMenuItems = () => {
+    if (user.tipo === 'morador') {
+      return [
+        { id: 'inicio', label: 'Início', icon: Home },
+        { id: 'servicos', label: 'Serviços', icon: Users },
+        { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+        { id: 'conta', label: 'Conta', icon: User }
+      ];
+    } else if (user.tipo === 'prestador') {
+      return [
+        { id: 'inicio', label: 'Início', icon: Home },
+        { id: 'meus-servicos', label: 'Serviços', icon: Settings },
+        { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+        { id: 'faturamento', label: 'Faturamento', icon: CreditCard },
+        { id: 'conta', label: 'Conta', icon: User }
+      ];
+    }
+    return [];
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'inicio':
+        return <HomeContent user={user} stats={{ getPendingPayments: getPendingPayments(), getCompletedServices: getCompletedServices(), getTotalEarnings: getTotalEarnings() }} />;
+      case 'servicos':
+        return <ServicesContent services={services} onBook={loadData} />;
+      case 'meus-servicos':
+        return <MyServicesContent services={myServices} onUpdate={loadData} />;
+      case 'agendamentos':
+        return <BookingsContent bookings={bookings} onUpdate={loadData} />;
+      case 'faturamento':
+        return <EarningsContent user={user} />;
+      case 'conta':
+        return <ProfileContent user={user} onUpdate={loadData} onLogout={handleLogout} />;
+      default:
+        return <HomeContent user={user} stats={{ getPendingPayments: getPendingPayments(), getCompletedServices: getCompletedServices(), getTotalEarnings: getTotalEarnings() }} />;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Home className="h-8 w-8 text-indigo-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">Alça Hub</span>
               <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                v1.0 • Demo
+                v2.0
               </span>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Olá, <span className="font-semibold">{user.nome}</span>
+                <span className="font-semibold">{user.nome}</span>
               </span>
               <Badge variant={user.tipo === 'morador' ? 'default' : user.tipo === 'prestador' ? 'secondary' : 'destructive'}>
                 {user.tipo === 'morador' ? '🏠 Morador' : user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
               </Badge>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Stats Cards */}
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {user.tipo === 'morador' && (
-              <>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-blue-100">
-                        <Calendar className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Agendamentos</p>
-                        <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-orange-100">
-                        <CreditCard className="h-6 w-6 text-orange-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Pagamentos Pendentes</p>
-                        <p className="text-2xl font-bold text-gray-900">{getPendingPayments()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-green-100">
-                        <Star className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Serviços Concluídos</p>
-                        <p className="text-2xl font-bold text-gray-900">{getCompletedServices()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
-            {user.tipo === 'prestador' && (
-              <>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-blue-100">
-                        <Users className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Meus Serviços</p>
-                        <p className="text-2xl font-bold text-gray-900">{myServices.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-green-100">
-                        <Star className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Faturamento</p>
-                        <p className="text-2xl font-bold text-gray-900">R$ {getTotalEarnings().toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-purple-100">
-                        <Calendar className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Agendamentos</p>
-                        <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
-
-          {/* Main Content Tabs */}
-          <Tabs defaultValue={user.tipo === 'morador' ? 'map' : 'my-services'} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              {user.tipo === 'morador' && (
-                <>
-                  <TabsTrigger value="map">🗺️ Mapa</TabsTrigger>
-                  <TabsTrigger value="services">🔍 Lista</TabsTrigger>
-                </>
-              )}
-              {user.tipo === 'prestador' && (
-                <TabsTrigger value="my-services">🛠️ Meus Serviços</TabsTrigger>
-              )}
-              <TabsTrigger value="bookings">
-                📅 {user.tipo === 'morador' ? 'Agendamentos' : 'Recebidos'}
-              </TabsTrigger>
-            </TabsList>
-
-            {user.tipo === 'morador' && (
-              <TabsContent value="map" className="mt-6">
-                <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: '70vh' }}>
-                  <UberStyleMap user={user} />
-                </div>
-              </TabsContent>
-            )}
-
-            {user.tipo === 'morador' && (
-              <TabsContent value="services" className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Serviços Disponíveis</h2>
-                  <Badge variant="outline">
-                    {services.length} serviços encontrados
-                  </Badge>
-                </div>
-                {services.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço disponível</h3>
-                      <p className="text-gray-500">Aguarde novos prestadores se cadastrarem.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {services.map((service) => (
-                      <ServiceCard key={service.id} service={service} onBook={loadData} />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            )}
-
-            {user.tipo === 'prestador' && (
-              <TabsContent value="my-services" className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Meus Serviços</h2>
-                  <CreateServiceDialog onSuccess={loadData} />
-                </div>
-                {myServices.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum serviço cadastrado</h3>
-                      <p className="text-gray-500 mb-4">Comece criando seu primeiro serviço.</p>
-                      <CreateServiceDialog onSuccess={loadData} />
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {myServices.map((service) => (
-                      <ServiceCard key={service.id} service={service} isOwner={true} />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            )}
-
-            <TabsContent value="bookings" className="space-y-4">
-              <h2 className="text-2xl font-bold">
-                {user.tipo === 'morador' ? 'Meus Agendamentos' : 'Agendamentos Recebidos'}
-              </h2>
-              {bookings.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agendamento</h3>
-                    <p className="text-gray-500">
-                      {user.tipo === 'morador' 
-                        ? 'Faça seu primeiro agendamento na aba "Buscar Serviços"' 
-                        : 'Aguarde agendamentos dos moradores'
-                      }
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {bookings.map((booking) => (
-                    <BookingCard key={booking.id} booking={booking} onUpdate={loadData} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          {renderContent()}
         </div>
-      </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20">
+        <div className="grid grid-cols-4 md:grid-cols-5 max-w-md mx-auto">
+          {getMenuItems().map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center py-3 px-2 text-xs transition-colors ${
+                  isActive 
+                    ? 'text-indigo-600 bg-indigo-50' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon className={`h-6 w-6 mb-1 ${isActive ? 'text-indigo-600' : ''}`} />
+                <span className={`${isActive ? 'font-semibold' : ''}`}>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };
