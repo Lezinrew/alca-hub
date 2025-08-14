@@ -74,6 +74,10 @@ class User(BaseModel):
     tipo: UserType
     foto_url: Optional[str] = None
     ativo: bool = True
+    # Geolocalização para prestadores
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    disponivel: bool = True  # Para prestadores indicarem disponibilidade
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
