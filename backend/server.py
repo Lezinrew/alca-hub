@@ -102,6 +102,24 @@ class UserCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+class UserProfileUpdate(BaseModel):
+    nome: Optional[str] = None
+    telefone: Optional[str] = None
+    endereco: Optional[str] = None
+    foto_url: Optional[str] = None
+    bio: Optional[str] = None
+    data_nascimento: Optional[str] = None
+
+class UserSettingsUpdate(BaseModel):
+    geolocalizacao_ativa: Optional[bool] = None
+    notificacoes_ativadas: Optional[bool] = None
+    privacidade_perfil: Optional[str] = None
+
+class PaymentMethodAdd(BaseModel):
+    tipo: str  # "cartao", "pix", "conta_bancaria"
+    nome: str
+    dados: Dict[str, Any]  # Dados específicos do método
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
