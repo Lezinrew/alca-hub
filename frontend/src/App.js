@@ -925,6 +925,179 @@ const BookingCard = ({ booking, onUpdate }) => {
   );
 };
 
+const PaymentModal = ({ booking, onClose, onSuccess }) => {
+  const [paymentMethod, setPaymentMethod] = useState('pix');
+  const [loading, setLoading] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
+  const [qrCodeVisible, setQrCodeVisible] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handlePIXPayment = async () => {
+    setLoading(true);
+    try {
+      const pixData = {
+        booking_id: booking.id,
+        payer_email: user.email,
+        payer_name: user.nome,
+        payer_identification: user.cpf,
+        payer_identification_type: "CPF"
+      };
+
+      const response = await axios.post(`${API}/payments/pix`, pixData);
+      setPaymentData(response.data);
+      setQrCodeVisible(true);
+      
+      toast({
+        title: "PIX gerado com sucesso!",
+        description: "Use o código PIX para realizar o pagamento",
+      });
+
+      // Start polling payment status
+      startPaymentPolling(response.data.payment_id);
+
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao gerar PIX",
+        description: error.response?.data?.detail || "Erro ao processar pagamento",
+      });
+    }
+    setLoading(false);
+  };
+
+  const startPaymentPolling = (paymentId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(`${API}/payments/${paymentId}/status`);
+        if (response.data.status === 'approved') {
+          clearInterval(pollInterval);
+          toast({
+            title: "Pagamento aprovado! 🎉",
+            description: "Seu pagamento foi processado com sucesso",
+          });
+          onSuccess();
+          onClose();
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status do pagamento:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    // Stop polling after 10 minutes
+    setTimeout(() => clearInterval(pollInterval), 600000);
+  };
+
+  const copyPIXCode = () => {
+    if (paymentData?.qr_code) {
+      navigator.clipboard.writeText(paymentData.qr_code);
+      toast({
+        title: "Código PIX copiado!",
+        description: "Cole no app do seu banco para pagar",
+      });
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Pagamento do Agendamento</DialogTitle>
+          <DialogDescription>
+            Valor: R$ {booking.preco_total.toFixed(2)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {!qrCodeVisible ? (
+            <>
+              <div>
+                <Label>Método de Pagamento</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX (Instantâneo)</SelectItem>
+                    <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {paymentMethod === 'pix' && (
+                <div className="text-center space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-blue-900">Pagamento PIX</h3>
+                    <p className="text-sm text-blue-700">
+                      Pagamento instantâneo e seguro via PIX
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handlePIXPayment} 
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? "Gerando PIX..." : "🏦 Gerar PIX"}
+                  </Button>
+                </div>
+              )}
+
+              {paymentMethod === 'credit_card' && (
+                <div className="text-center space-y-4">
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-orange-900">Cartão de Crédito</h3>
+                    <p className="text-sm text-orange-700">
+                      Em breve: Pagamento parcelado em até 12x
+                    </p>
+                  </div>
+                  <Button disabled className="w-full">
+                    💳 Em breve
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="font-semibold text-green-700 mb-2">PIX Gerado com Sucesso!</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Escaneie o QR Code ou copie o código para pagar
+                </p>
+              </div>
+
+              {paymentData?.qr_code_base64 && (
+                <div className="flex justify-center mb-4">
+                  <img 
+                    src={`data:image/png;base64,${paymentData.qr_code_base64}`}
+                    alt="QR Code PIX"
+                    className="w-48 h-48 border rounded-lg"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Button onClick={copyPIXCode} variant="outline" className="w-full">
+                  📋 Copiar Código PIX
+                </Button>
+                <div className="text-xs text-gray-500 text-center">
+                  <p>⏰ Expira em: {new Date(paymentData?.expiration_date).toLocaleString('pt-BR')}</p>
+                  <p className="mt-2">🔄 Aguardando pagamento...</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {qrCodeVisible ? "Fechar" : "Cancelar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
