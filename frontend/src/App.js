@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import axios from "axios";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -8,17 +9,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "./components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader as UISheetHeader, SheetTitle as UISheetTitle, SheetTrigger, SheetClose } from "./components/ui/sheet";
+import SideMenu from "./components/SideMenu";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
+import { SERVICE_CATEGORIES_DATA } from "./components/ServiceCategories";
 import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map } from "lucide-react";
 import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
 import UberStyleMap from "./components/UberStyleMap";
+import { API_URL } from "./lib/config";
+import AdminDashboard from "./pages/AdminDashboard";
+import Mapa from "./pages/Mapa";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${API_URL}/api`;
 
 // Auth Context
 const AuthContext = createContext();
@@ -181,6 +187,9 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Entrando..." : "Entrar"}
             </Button>
+            <Link to="/forgot-password" className="text-sm text-[#6366F1] hover:underline text-center">
+              Esqueceu a senha?
+            </Link>
             <p className="text-sm text-center">
               Não tem conta?{" "}
               <Link to="/register" className="text-indigo-600 hover:underline">
@@ -193,6 +202,23 @@ const Login = () => {
     </div>
   );
 };
+
+// Placeholder pages to satisfy new routes if not already present
+const EarningsPlaceholder = () => (
+  <div className="p-6">Página de Pagamento (em breve)</div>
+);
+
+const SecurityPlaceholder = () => (
+  <div className="p-6">Configurações de Segurança (em breve)</div>
+);
+
+const MapPlaceholder = () => (
+  <div className="p-6">Mapa (em breve)</div>
+);
+
+const ReviewPlaceholder = () => (
+  <div className="p-6">Avaliar (em breve)</div>
+);
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -339,9 +365,54 @@ const Register = () => {
   );
 };
 
+const ForgotPassword = () => {
+  const [email, setEmail] = useState("");
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    toast({
+      title: "Se o email existir, enviaremos instruções",
+      description: "Verifique sua caixa de entrada",
+    });
+    navigate('/login');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-indigo-900">Recuperar senha</CardTitle>
+          <CardDescription>Informe seu email para receber o link de redefinição</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full">Enviar</Button>
+            <Link to="/login" className="text-sm text-[#6366F1] hover:underline text-center">Voltar ao login</Link>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { tab } = useParams();
   const [services, setServices] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [myServices, setMyServices] = useState([]);
@@ -420,7 +491,7 @@ const Dashboard = () => {
       return [
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'servicos', label: 'Serviços', icon: Users },
-        { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+        { id: 'agendamentos', label: 'Meus Pedidos', icon: Calendar },
         { id: 'conta', label: 'Conta', icon: User }
       ];
     } else if (user.tipo === 'prestador') {
@@ -435,7 +506,19 @@ const Dashboard = () => {
     return [];
   };
 
+  // Sync active tab with URL param
+  useEffect(() => {
+    const items = getMenuItems();
+    const allowed = new Set(items.map((i) => i.id));
+    const next = tab && allowed.has(tab) ? tab : 'inicio';
+    setActiveTab(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, user.tipo]);
+
   const renderContent = () => {
+    if (user.tipo === 'admin') {
+      return <AdminDashboard />;
+    }
     switch (activeTab) {
       case 'inicio':
         return <HomeContent user={user} stats={{ getPendingPayments: getPendingPayments(), getCompletedServices: getCompletedServices(), getTotalEarnings: getTotalEarnings() }} />;
@@ -461,7 +544,30 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Home className="h-8 w-8 text-indigo-600" />
+              <img src="/logo-alca-hub.png" alt="Logo Alça Hub" className="h-8" />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Abrir menu"
+                    className="ml-3 p-2 rounded hover:bg-gray-100 active:scale-95 transition cursor-pointer"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-700">
+                      <path fillRule="evenodd" d="M3.75 6.75A.75.75 0 0 1 4.5 6h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Zm0 5.25a.75.75 0 0 1 .75-.75h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Zm.75 4.5a.75.75 0 0 0 0 1.5h15a.75.75 0 0 0 0-1.5h-15Z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80">
+                  <UISheetHeader>
+                    <UISheetTitle>Menu</UISheetTitle>
+                  </UISheetHeader>
+                  <SheetClose asChild>
+                    <div>
+                      <SideMenu onNavigate={(p) => navigate(p)} onClose={() => {}} />
+                    </div>
+                  </SheetClose>
+                </SheetContent>
+              </Sheet>
               <span className="ml-2 text-xl font-bold text-gray-900">Alça Hub</span>
               <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
                 v2.0
@@ -471,9 +577,15 @@ const Dashboard = () => {
               <span className="text-sm text-gray-700">
                 <span className="font-semibold">{user.nome}</span>
               </span>
-              <Badge variant={user.tipo === 'morador' ? 'default' : user.tipo === 'prestador' ? 'secondary' : 'destructive'}>
-                {user.tipo === 'morador' ? '🏠 Morador' : user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
-              </Badge>
+              {user.tipo === 'morador' ? (
+                <Button size="sm" onClick={() => setActiveTab('agendamentos')}>
+                  Meus Pedidos
+                </Button>
+              ) : (
+                <Badge variant={user.tipo === 'prestador' ? 'secondary' : 'destructive'}>
+                  {user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -495,8 +607,8 @@ const Dashboard = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center py-3 px-2 text-xs transition-colors ${
+                onClick={() => navigate(`/dashboard/${item.id}`)}
+                className={`flex flex-col items-center py-3 px-2 text-xs transition-colors cursor-pointer active:scale-95 ${
                   isActive 
                     ? 'text-indigo-600 bg-indigo-50' 
                     : 'text-gray-500 hover:text-gray-700'
@@ -684,6 +796,8 @@ const CreateServiceDialog = ({ onSuccess }) => {
     horario_inicio: '',
     horario_fim: ''
   });
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState('');
+  const [servicoSelecionado, setServicoSelecionado] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -698,6 +812,8 @@ const CreateServiceDialog = ({ onSuccess }) => {
     try {
       const serviceData = {
         ...formData,
+        categoria: categoriaSelecionada || formData.categoria,
+        nome: servicoSelecionado || formData.nome,
         preco_por_hora: parseFloat(formData.preco_por_hora)
       };
 
@@ -718,6 +834,8 @@ const CreateServiceDialog = ({ onSuccess }) => {
         horario_inicio: '',
         horario_fim: ''
       });
+      setCategoriaSelecionada('');
+      setServicoSelecionado('');
       onSuccess();
     } catch (error) {
       toast({
@@ -748,31 +866,33 @@ const CreateServiceDialog = ({ onSuccess }) => {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="nome">Nome do Serviço</Label>
-              <Input
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                required
-              />
-            </div>
-            <div>
               <Label htmlFor="categoria">Categoria</Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
+              <Select value={categoriaSelecionada} onValueChange={(value) => { setCategoriaSelecionada(value); setServicoSelecionado(''); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="limpeza">Limpeza</SelectItem>
-                  <SelectItem value="manutencao">Manutenção</SelectItem>
-                  <SelectItem value="jardinagem">Jardinagem</SelectItem>
-                  <SelectItem value="pintura">Pintura</SelectItem>
-                  <SelectItem value="eletrica">Elétrica</SelectItem>
-                  <SelectItem value="encanamento">Encanamento</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
+                  {SERVICE_CATEGORIES_DATA.map((c) => (
+                    <SelectItem key={c.categoria} value={c.categoria}>{c.categoria}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+            {categoriaSelecionada && (
+              <div>
+                <Label htmlFor="servico">Nome do Serviço</Label>
+                <Select value={servicoSelecionado} onValueChange={setServicoSelecionado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(SERVICE_CATEGORIES_DATA.find((i) => i.categoria === categoriaSelecionada)?.serviços || []).map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label htmlFor="descricao">Descrição</Label>
               <Textarea
@@ -1267,6 +1387,7 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
 // Content Components for new navigation
 const HomeContent = ({ user, stats }) => {
+  const navigate = useNavigate();
   return (
     <div className="space-y-6">
       <div>
@@ -1292,7 +1413,7 @@ const HomeContent = ({ user, stats }) => {
                     <Calendar className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                    <p className="text-sm font-medium text-gray-500">Meus Pedidos</p>
                     <p className="text-xl font-bold text-gray-900">12</p>
                   </div>
                 </div>
@@ -1349,7 +1470,7 @@ const HomeContent = ({ user, stats }) => {
                     <Calendar className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-500">Agendamentos</p>
+                    <p className="text-sm font-medium text-gray-500">Meus Pedidos</p>
                     <p className="text-xl font-bold text-gray-900">8</p>
                   </div>
                 </div>
@@ -1381,19 +1502,19 @@ const HomeContent = ({ user, stats }) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {user.tipo === 'morador' && (
               <>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/mapa')}>
                   <Map className="h-6 w-6 mb-2" />
                   <span className="text-xs">Ver Mapa</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/servicos')}>
                   <Users className="h-6 w-6 mb-2" />
                   <span className="text-xs">Buscar Serviços</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/meus-pedidos')}>
                   <Calendar className="h-6 w-6 mb-2" />
-                  <span className="text-xs">Agendamentos</span>
+                  <span className="text-xs">Meus Pedidos</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/avaliar')}>
                   <Star className="h-6 w-6 mb-2" />
                   <span className="text-xs">Avaliar</span>
                 </Button>
@@ -1510,8 +1631,8 @@ const BookingsContent = ({ bookings, onUpdate }) => {
         <Card>
           <CardContent className="text-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum agendamento</h3>
-            <p className="text-gray-500">Seus agendamentos aparecerão aqui.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum pedido</h3>
+            <p className="text-gray-500">Seus pedidos aparecerão aqui.</p>
           </CardContent>
         </Card>
       ) : (
@@ -1905,8 +2026,24 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/conta" element={<ProtectedRoute><ProfileContent user={{}} onUpdate={() => {}} onLogout={() => {}} /></ProtectedRoute>} />
+            <Route path="/pagamento" element={<ProtectedRoute><EarningsPlaceholder /></ProtectedRoute>} />
+            <Route path="/seguranca" element={<ProtectedRoute><SecurityPlaceholder /></ProtectedRoute>} />
+            <Route path="/meus-pedidos" element={<ProtectedRoute><BookingsContent bookings={[]} onUpdate={() => {}} /></ProtectedRoute>} />
+            <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
+            <Route path="/servicos" element={<ProtectedRoute><ServicesContent services={[]} onBook={() => {}} /></ProtectedRoute>} />
+            <Route path="/avaliar" element={<ProtectedRoute><ReviewPlaceholder /></ProtectedRoute>} />
             <Route
               path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/:tab"
               element={
                 <ProtectedRoute>
                   <Dashboard />

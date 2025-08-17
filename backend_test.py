@@ -9,12 +9,41 @@ import json
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import socket
+
 
 # Load environment variables
 load_dotenv('/app/frontend/.env')
+load_dotenv()
 
-# Get backend URL from environment
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://service-hub-50.preview.emergentagent.com')
+
+def _is_local_env():
+    return os.getenv('DEBUG') == '1' or (os.getenv('ENV') or '').lower() == 'dev'
+
+
+def _prefer_local_if_available(default_url: str) -> str:
+    if _is_local_env():
+        return 'http://localhost:8000'
+    try:
+        resp = requests.get('http://localhost:8000/ping', timeout=0.5)
+        if resp.status_code == 200 and resp.json().get('message') == 'pong':
+            return 'http://localhost:8000'
+    except Exception:
+        pass
+    return default_url
+
+
+def resolve_backend_url() -> str:
+    # Allow explicit override
+    forced = os.getenv('FORCE_BACKEND_URL')
+    if forced:
+        return forced
+    # Fallbacks: env var
+    fallback = os.getenv('REACT_APP_BACKEND_URL')
+    return _prefer_local_if_available(fallback)
+
+
+BACKEND_URL = resolve_backend_url()
 API_BASE_URL = f"{BACKEND_URL}/api"
 
 print(f"Testing backend at: {API_BASE_URL}")

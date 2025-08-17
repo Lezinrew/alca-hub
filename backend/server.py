@@ -17,6 +17,8 @@ import mercadopago
 import hmac
 import hashlib
 import json
+import csv
+import io
 
 
 ROOT_DIR = Path(__file__).parent
@@ -40,11 +42,25 @@ MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
 MERCADO_PAGO_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET')
 
+# Backend Base URL resolution per rules
+def _is_local_env() -> bool:
+    return os.getenv('DEBUG') == '1' or (os.getenv('ENV') or '').lower() == 'dev'
+
+# Reusable API base URL constant
+API_BASE_URL = (
+    'http://localhost:8000' if _is_local_env() else os.environ.get('REACT_APP_BACKEND_URL')
+)
+
 # Create the main app without a prefix
 app = FastAPI(title="Alça Hub API", description="Sistema de gestão de serviços para condomínios")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# Health check
+@app.get("/ping")
+async def ping():
+    return {"message": "pong"}
 
 # Enums
 class UserType(str, Enum):
@@ -179,6 +195,38 @@ class BookingCreate(BaseModel):
 
 class BookingUpdate(BaseModel):
     status: BookingStatus
+
+class AdminUserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    cpf: Optional[str] = None
+    nome: Optional[str] = None
+    telefone: Optional[str] = None
+    endereco: Optional[str] = None
+    tipo: Optional[UserType] = None
+    ativo: Optional[bool] = None
+    foto_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+class AdminServiceCreate(BaseModel):
+    prestador_id: str
+    nome: str
+    descricao: str
+    categoria: str
+    preco_por_hora: float
+    disponibilidade: List[str]
+    horario_inicio: str
+    horario_fim: str
+
+class AdminServiceUpdate(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    categoria: Optional[str] = None
+    preco_por_hora: Optional[float] = None
+    disponibilidade: Optional[List[str]] = None
+    horario_inicio: Optional[str] = None
+    horario_fim: Optional[str] = None
+    status: Optional[ServiceStatus] = None
 
 class Review(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -696,6 +744,231 @@ async def get_stats_overview(current_user: User = Depends(get_current_user)):
         "total_bookings": total_bookings,
         "total_reviews": total_reviews
     }
+
+# Admin routes
+def ensure_admin(user: User):
+    if user.tipo != UserType.ADMIN:
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+
+@api_router.get("/admin/stats")
+async def get_admin_stats(current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    # Aggregate data for charts and counters
+    total_users = await db.users.count_documents({})
+    user_types = {
+        "morador": await db.users.count_documents({"tipo": UserType.MORADOR}),
+        "prestador": await db.users.count_documents({"tipo": UserType.PRESTADOR}),
+        "admin": await db.users.count_documents({"tipo": UserType.ADMIN}),
+    }
+
+    bookings_by_status = {}
+    for st in [s.value for s in BookingStatus]:
+        bookings_by_status[st] = await db.bookings.count_documents({"status": st})
+
+    # Top services by bookings
+    services = await db.services.find({}).to_list(length=1000)
+    bookings = await db.bookings.find({}).to_list(length=10000)
+    service_usage = {}
+    for b in bookings:
+        sid = b.get("service_id")
+        if sid:
+            service_usage[sid] = service_usage.get(sid, 0) + 1
+    services_popularity = [
+        {
+            "service_id": s["id"],
+            "nome": s["nome"],
+            "total": service_usage.get(s["id"], 0),
+        }
+        for s in services
+    ]
+    services_popularity.sort(key=lambda x: x["total"], reverse=True)
+
+    # Bookings per day (last 7)
+    def to_day(dt: datetime) -> str:
+        return dt.strftime("%Y-%m-%d")
+
+    from datetime import timezone
+    today = datetime.now(tz=timezone.utc)
+    last7 = [(today - timedelta(days=i)).date().isoformat() for i in range(6, -1, -1)]
+    bookings_per_day = {d: 0 for d in last7}
+    for b in bookings:
+        dt = b.get("created_at")
+        if isinstance(dt, datetime):
+            d = dt.date().isoformat()
+            if d in bookings_per_day:
+                bookings_per_day[d] += 1
+
+    # Revenue per day (last 30)
+    last30 = [(today - timedelta(days=i)).date().isoformat() for i in range(29, -1, -1)]
+    revenue_per_day = {d: 0.0 for d in last30}
+    for b in bookings:
+        if b.get("payment_status") == "paid":
+            dt = b.get("created_at")
+            if isinstance(dt, datetime):
+                d = dt.date().isoformat()
+                if d in revenue_per_day:
+                    revenue_per_day[d] += float(b.get("preco_total", 0))
+
+    return {
+        "counters": {
+            "total_users": total_users,
+            "total_services": await db.services.count_documents({}),
+            "total_bookings": await db.bookings.count_documents({}),
+            "total_reviews": await db.reviews.count_documents({}),
+        },
+        "user_types": user_types,
+        "bookings_by_status": bookings_by_status,
+        "services_popularity": services_popularity[:10],
+        "bookings_per_day": [{"date": d, "total": bookings_per_day[d]} for d in last7],
+        "revenue_per_day": [{"date": d, "amount": revenue_per_day[d]} for d in last30],
+        "satisfaction": [
+            {"label": "Ótimo", "value": 62},
+            {"label": "Bom", "value": 25},
+            {"label": "Regular", "value": 9},
+            {"label": "Ruim", "value": 4},
+        ],
+        "avg_service_time_min": 78,
+    }
+
+@api_router.get("/admin/users")
+async def admin_list_users(q: Optional[str] = None, tipo: Optional[UserType] = None, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    filter_query: Dict[str, Any] = {}
+    if tipo:
+        filter_query["tipo"] = tipo
+    if q:
+        filter_query["$or"] = [
+            {"nome": {"$regex": q, "$options": "i"}},
+            {"email": {"$regex": q, "$options": "i"}},
+            {"cpf": {"$regex": q, "$options": "i"}},
+        ]
+    users = await db.users.find(filter_query).sort("created_at", -1).to_list(length=1000)
+    for u in users:
+        u.pop("password", None)
+    return {"users": users}
+
+@api_router.post("/admin/users")
+async def admin_create_user(body: UserCreate, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    if await db.users.find_one({"email": body.email}):
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    if await db.users.find_one({"cpf": body.cpf}):
+        raise HTTPException(status_code=400, detail="CPF já cadastrado")
+    hashed_password = get_password_hash(body.password)
+    user = User(**{k: v for k, v in body.dict().items() if k != "password"})
+    doc = user.dict()
+    doc["password"] = hashed_password
+    await db.users.insert_one(doc)
+    doc.pop("password", None)
+    return doc
+
+@api_router.put("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, body: AdminUserUpdate, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    update_fields = {k: v for k, v in body.dict().items() if v is not None}
+    if not update_fields:
+        return {"message": "Nada para atualizar"}
+    update_fields["updated_at"] = datetime.utcnow()
+    res = await db.users.update_one({"id": user_id}, {"$set": update_fields})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    updated = await db.users.find_one({"id": user_id})
+    updated.pop("password", None)
+    return updated
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    res = await db.users.delete_one({"id": user_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return {"message": "Usuário removido"}
+
+@api_router.get("/admin/services")
+async def admin_list_services(current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    services = await db.services.find({}).sort("created_at", -1).to_list(length=1000)
+    # attach usage
+    usage = {}
+    for b in await db.bookings.find({}).to_list(length=10000):
+        sid = b.get("service_id")
+        usage[sid] = usage.get(sid, 0) + 1
+    for s in services:
+        s["usage_total"] = usage.get(s["id"], 0)
+    return {"services": services}
+
+@api_router.post("/admin/services")
+async def admin_create_service(body: AdminServiceCreate, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    # Validate provider exists
+    provider = await db.users.find_one({"id": body.prestador_id, "tipo": UserType.PRESTADOR})
+    if not provider:
+        raise HTTPException(status_code=400, detail="Prestador inválido")
+    service = Service(prestador_id=body.prestador_id, **{k: v for k, v in body.dict().items() if k != "prestador_id"})
+    await db.services.insert_one(service.dict())
+    return service
+
+@api_router.put("/admin/services/{service_id}")
+async def admin_update_service(service_id: str, body: AdminServiceUpdate, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    update_fields = {k: v for k, v in body.dict().items() if v is not None}
+    if not update_fields:
+        return {"message": "Nada para atualizar"}
+    update_fields["updated_at"] = datetime.utcnow()
+    res = await db.services.update_one({"id": service_id}, {"$set": update_fields})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    updated = await db.services.find_one({"id": service_id})
+    return updated
+
+@api_router.delete("/admin/services/{service_id}")
+async def admin_delete_service(service_id: str, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    res = await db.services.delete_one({"id": service_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+    return {"message": "Serviço removido"}
+
+@api_router.get("/admin/bookings")
+async def admin_list_bookings(current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    bookings = await db.bookings.find({}).sort("created_at", -1).to_list(length=1000)
+    return {"bookings": bookings}
+
+@api_router.put("/admin/bookings/{booking_id}")
+async def admin_update_booking(booking_id: str, body: BookingUpdate, current_user: User = Depends(get_current_user)):
+    ensure_admin(current_user)
+    res = await db.bookings.update_one({"id": booking_id}, {"$set": {"status": body.status, "updated_at": datetime.utcnow()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado")
+    updated = await db.bookings.find_one({"id": booking_id})
+    return updated
+
+@api_router.get("/admin/export")
+async def admin_export(kind: str, current_user: User = Depends(get_current_user)):
+    """Export data as CSV. kind: users|bookings|services"""
+    ensure_admin(current_user)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    if kind == "users":
+        data = await db.users.find({}).to_list(length=10000)
+        writer.writerow(["id", "nome", "email", "cpf", "tipo", "ativo", "created_at"]) 
+        for u in data:
+            writer.writerow([u.get("id"), u.get("nome"), u.get("email"), u.get("cpf"), u.get("tipo"), u.get("ativo"), u.get("created_at")])
+    elif kind == "bookings":
+        data = await db.bookings.find({}).to_list(length=10000)
+        writer.writerow(["id", "morador_id", "prestador_id", "service_id", "status", "payment_status", "preco_total", "created_at"]) 
+        for b in data:
+            writer.writerow([b.get("id"), b.get("morador_id"), b.get("prestador_id"), b.get("service_id"), b.get("status"), b.get("payment_status"), b.get("preco_total"), b.get("created_at")])
+    elif kind == "services":
+        data = await db.services.find({}).to_list(length=10000)
+        writer.writerow(["id", "prestador_id", "nome", "categoria", "preco_por_hora", "status", "created_at"]) 
+        for s in data:
+            writer.writerow([s.get("id"), s.get("prestador_id"), s.get("nome"), s.get("categoria"), s.get("preco_por_hora"), s.get("status"), s.get("created_at")])
+    else:
+        raise HTTPException(status_code=400, detail="Parâmetro 'kind' inválido")
+    return {"filename": f"export_{kind}.csv", "content": buf.getvalue()}
+
 
 # Payment routes
 @api_router.post("/payments/pix", response_model=PaymentResponse)

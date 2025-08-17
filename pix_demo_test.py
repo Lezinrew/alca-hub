@@ -10,12 +10,44 @@ import time
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import socket
 
 # Load environment variables
 load_dotenv('/app/frontend/.env')
+load_dotenv()
 
-# Get backend URL from environment
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://service-hub-50.preview.emergentagent.com')
+
+def _is_local_env():
+    node_env = (os.getenv('NODE_ENV') or '').lower()
+    debug_env = (os.getenv('DEBUG') or '').lower()
+    hostname = socket.gethostname().lower()
+    return node_env == 'development' or debug_env in ('1', 'true', 'yes') or hostname.endswith('.local')
+
+
+def _prefer_local_if_available(default_url: str) -> str:
+    if _is_local_env():
+        return 'http://localhost:8000'
+    try:
+        resp = requests.get('http://localhost:8000/ping', timeout=0.5)
+        if resp.status_code == 200 and resp.json().get('message') == 'pong':
+            return 'http://localhost:8000'
+    except Exception:
+        pass
+    return default_url
+
+
+def resolve_backend_url() -> str:
+    forced = os.getenv('FORCE_BACKEND_URL')
+    if forced:
+        return forced
+    fallback = os.getenv(
+        'REACT_APP_BACKEND_URL',
+        'https://e641a91d-99c2-4bc5-be8b-ac6dfefb7674.preview.emergentagent.com'
+    )
+    return _prefer_local_if_available(fallback)
+
+
+BACKEND_URL = resolve_backend_url()
 API_BASE_URL = f"{BACKEND_URL}/api"
 
 print(f"Testing PIX Demo Mode at: {API_BASE_URL}")

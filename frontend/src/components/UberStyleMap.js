@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../hooks/use-toast';
+import { API_URL } from '../lib/config';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -108,8 +109,7 @@ const UberStyleMap = ({ user }) => {
   const mapRef = useRef();
   const { toast } = useToast();
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-  const API = `${BACKEND_URL}/api`;
+  const API = `${API_URL}/api`;
 
   // Get user's current location
   useEffect(() => {
