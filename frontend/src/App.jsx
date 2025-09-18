@@ -19,7 +19,7 @@ import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings,
 import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
-import UberStyleMap from "./components/UberStyleMap";
+import UberStyleMap from "./components/UberStyleMap.jsx";
 import { API_URL } from "./lib/config";
 import AdminDashboard from "./pages/AdminDashboard";
 import Mapa from "./pages/Mapa";

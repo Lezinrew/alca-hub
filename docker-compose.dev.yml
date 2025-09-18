@@ -1,0 +1,44 @@
+# Docker Compose para Desenvolvimento - Alça Hub
+# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Backend com hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=1
+      - ENV=dev
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=alca_hub_dev
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+
+  # Frontend com hot reload
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: ["yarn", "start"]
+    ports:
+      - "3000:3000"
+
+  # MongoDB para desenvolvimento
+  mongo:
+    environment:
+      - MONGO_INITDB_DATABASE=alca_hub_dev
+    ports:
+      - "27017:27017"

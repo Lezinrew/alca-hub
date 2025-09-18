@@ -1,0 +1,47 @@
+# Docker Compose Override para Desenvolvimento - Alça Hub
+# Este arquivo é usado automaticamente pelo docker-compose para desenvolvimento
+
+services:
+  # Backend com hot reload para desenvolvimento
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      - DEBUG=1
+      - ENV=dev
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # Porta para debugger
+
+  # Frontend com hot reload para desenvolvimento
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true  # Para hot reload no Docker
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Excluir node_modules do bind mount
+    command: ["yarn", "start"]
+    ports:
+      - "3000:3000"
+      - "3001:3001"  # Porta alternativa se 3000 estiver ocupada
+
+  # MongoDB sem autenticação para desenvolvimento
+  mongo:
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=
+      - MONGO_INITDB_ROOT_PASSWORD=
+    ports:
+      - "27017:27017"
+      - "27018:27018"  # Porta alternativa

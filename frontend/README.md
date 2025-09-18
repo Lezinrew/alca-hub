@@ -1,70 +1,201 @@
-# Getting Started with Create React App
+# Alça Hub - Frontend 🎨
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Interface moderna e responsiva para o sistema Alça Hub, desenvolvida com React 19 e tecnologias de ponta.
 
-## Available Scripts
+## 🚀 Tecnologias
 
-In the project directory, you can run:
+- **React 19** - Biblioteca principal
+- **React Router** - Roteamento
+- **Tailwind CSS** - Estilização
+- **Radix UI** - Componentes acessíveis
+- **Framer Motion** - Animações
+- **Axios** - Cliente HTTP
+- **Leaflet** - Mapas interativos
+- **QRCode** - Geração de códigos QR
 
-### `npm start`
+## 📦 Scripts Disponíveis
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### `yarn start` ou `npm start`
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Executa a aplicação em modo de desenvolvimento.\
+Abra [http://localhost:3000](http://localhost:3000) para visualizar no navegador.
 
-### `npm test`
+A página recarregará automaticamente quando você fizer alterações.\
+Você também verá erros de lint no console.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### `yarn build` ou `npm run build`
 
-### `npm run build`
+Constrói a aplicação para produção na pasta `build`.\
+O React é empacotado corretamente em modo de produção e otimizado para melhor performance.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+O build é minificado e os nomes dos arquivos incluem hashes.\
+Sua aplicação está pronta para deploy!
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### `yarn test` ou `npm test`
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Inicia o executor de testes no modo interativo.\
+Veja a seção sobre [executando testes](https://facebook.github.io/create-react-app/docs/running-tests) para mais informações.
 
-### `npm run eject`
+## 🏗️ Estrutura do Projeto
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
+src/
+├── components/           # Componentes reutilizáveis
+│   ├── admin/           # Componentes administrativos
+│   ├── ui/              # Componentes de interface
+│   ├── SideMenu.jsx     # Menu lateral
+│   └── ServiceCategories.jsx
+├── pages/               # Páginas da aplicação
+│   ├── AdminDashboard.jsx
+│   └── Mapa.jsx
+├── hooks/              # Hooks customizados
+├── lib/                # Utilitários e configurações
+├── App.js              # Componente principal
+└── index.js            # Ponto de entrada
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 🎨 Componentes Principais
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Dashboard
+- Interface responsiva com navegação por abas
+- Diferentes visualizações para moradores, prestadores e admins
+- Estatísticas em tempo real
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Sistema de Pagamento
+- Integração com PIX via Mercado Pago
+- Geração de QR codes
+- Status de pagamento em tempo real
 
-## Learn More
+### Mapa Interativo
+- Visualização de prestadores próximos
+- Geolocalização automática
+- Filtros por categoria
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Chat
+- Sistema de mensagens em tempo real
+- Negociação de preços
+- Histórico de conversas
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🔧 Configuração
 
-### Code Splitting
+### Variáveis de Ambiente
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Crie um arquivo `.env` na raiz do projeto frontend:
 
-### Analyzing the Bundle Size
+```env
+REACT_APP_BACKEND_URL=http://localhost:8000
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Dependências
 
-### Making a Progressive Web App
+```bash
+# Instalar dependências
+yarn install
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+# ou
+npm install
+```
 
-### Advanced Configuration
+## 🎯 Funcionalidades por Tipo de Usuário
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### 👤 Moradores
+- Busca de serviços
+- Visualização no mapa
+- Agendamento
+- Pagamento via PIX
+- Avaliação de serviços
 
-### Deployment
+### 🔧 Prestadores
+- Cadastro de serviços
+- Gestão de agendamentos
+- Dashboard de faturamento
+- Controle de disponibilidade
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 👑 Administradores
+- Painel de controle completo
+- Gestão de usuários
+- Relatórios e estatísticas
+- Exportação de dados
 
-### `npm run build` fails to minify
+## 🎨 Design System
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Cores
+- **Primária**: Indigo (#6366F1)
+- **Secundária**: Purple (#8B5CF6)
+- **Sucesso**: Green (#10B981)
+- **Aviso**: Orange (#F59E0B)
+- **Erro**: Red (#EF4444)
+
+### Componentes
+- Cards responsivos
+- Botões com estados
+- Formulários validados
+- Modais e diálogos
+- Navegação intuitiva
+
+## 📱 Responsividade
+
+A aplicação é totalmente responsiva e otimizada para:
+- 📱 Mobile (320px+)
+- 📱 Tablet (768px+)
+- 💻 Desktop (1024px+)
+- 🖥️ Large screens (1280px+)
+
+## 🚀 Deploy
+
+### Build de Produção
+```bash
+yarn build
+```
+
+### Servir Arquivos Estáticos
+Use nginx, Apache ou serviços como:
+- Vercel
+- Netlify
+- AWS S3 + CloudFront
+- Firebase Hosting
+
+## 🔍 Desenvolvimento
+
+### Estrutura de Componentes
+- Componentes funcionais com hooks
+- Props tipadas (quando possível)
+- Estado local com useState
+- Efeitos com useEffect
+
+### Roteamento
+- Rotas protegidas por autenticação
+- Navegação por tipo de usuário
+- Redirecionamentos automáticos
+
+### Estado Global
+- Context API para autenticação
+- LocalStorage para persistência
+- Axios interceptors para tokens
+
+## 🐛 Troubleshooting
+
+### Problemas Comuns
+
+1. **Erro de CORS**
+   - Verifique se o backend está rodando
+   - Confirme as variáveis de ambiente
+
+2. **Erro de Autenticação**
+   - Verifique se o token está sendo enviado
+   - Confirme as rotas protegidas
+
+3. **Problemas de Build**
+   - Limpe o cache: `yarn cache clean`
+   - Delete node_modules e reinstale
+
+## 📚 Documentação Adicional
+
+- [React Documentation](https://reactjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [Framer Motion](https://www.framer.com/motion/)
+
+---
+
+**Alça Hub Frontend** - Interface moderna para conectar pessoas! 🎨✨
