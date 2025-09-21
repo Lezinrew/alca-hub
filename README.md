@@ -70,6 +70,27 @@ O **Alça Hub** é uma plataforma web que facilita a contratação de serviços 
 - Yarn ou npm
 - Git
 
+### **📱 Aplicativos Mobile**
+O Alça Hub também está disponível como aplicativos nativos para Android e iOS! 
+
+**Para gerar o APK Android:**
+- 📖 **[Guia Completo Android](docs/mobile/android/GUIA_ANDROID_APK.md)** - Instruções detalhadas para gerar APK
+- 🧪 **[Guia de Testes Android](docs/mobile/android/TESTE_ANDROID_CELULAR.md)** - Como testar no celular
+- 🔧 **Tecnologia**: Capacitor + React + Android Studio
+- 📱 **Compatibilidade**: Android 11+ (API 30+)
+
+**Para gerar o App iOS:**
+- 📖 **[Guia Completo iOS](docs/mobile/ios/GUIA_IOS_APP.md)** - Instruções detalhadas para gerar app iOS
+- 🧪 **[Guia de Testes iOS](docs/mobile/ios/TESTE_IOS_IPHONE.md)** - Como testar no iPhone
+- 🔧 **Tecnologia**: Capacitor + React + Xcode
+- 📱 **Compatibilidade**: iOS 15+ (iPhone/iPad)
+
+### **📚 Documentação Completa**
+- 📖 **[Índice da Documentação](docs/README.md)** - Navegação completa
+- 🚀 **[Guia de Instalação](docs/guides/installation/GUIA_INSTALACAO.md)** - Setup completo
+- 📱 **[Mobile](docs/mobile/)** - Apps Android e iOS
+- 🔧 **[Desenvolvimento](docs/guides/)** - Guias de desenvolvimento
+
 ### **1. Clone o Repositório**
 ```bash
 git clone https://github.com/Lezinrew/alca-hub.git
@@ -283,8 +304,17 @@ alca-hub/
 │   │   ├── 📁 lib/              # Utilitários e configurações
 │   │   ├── 📁 data/             # Dados mockados
 │   │   └── 📁 contexts/         # Contextos React
+│   ├── 📁 android/              # Aplicativo Android (Capacitor)
+│   │   ├── 📁 app/              # Código nativo Android
+│   │   ├── 📄 build.gradle       # Configuração Gradle
+│   │   └── 📄 gradle.properties # Propriedades do projeto
+│   ├── 📁 ios/                  # Aplicativo iOS (Capacitor)
+│   │   ├── 📁 App/              # Código nativo iOS
+│   │   ├── 📄 Podfile           # Configuração CocoaPods
+│   │   └── 📄 Info.plist        # Configurações do app
 │   ├── 📁 public/               # Arquivos estáticos
 │   ├── 📄 package.json          # Dependências Node.js
+│   ├── 📄 capacitor.config.json # Configuração Capacitor
 │   ├── 📄 vite.config.js        # Configuração do Vite
 │   └── 📄 tailwind.config.js   # Configuração do Tailwind
 ├── 📄 docker-compose.yml         # Configuração Docker
@@ -496,13 +526,14 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ## 🗺️ Roadmap
 
 ### **Próximas Funcionalidades**
+- [x] **App Mobile Android** - Aplicativo nativo (✅ Implementado)
+- [x] **App Mobile iOS** - Aplicativo nativo para iPhone (✅ Implementado)
 - [ ] **Chat em Tempo Real** - Comunicação instantânea
 - [ ] **Notificações Push** - Alertas mobile
 - [ ] **Integração WhatsApp** - Agendamentos via WhatsApp
 - [ ] **Sistema de Cupons** - Descontos e promoções
 - [ ] **Relatórios Avançados** - Analytics detalhados
 - [ ] **API Pública** - Integração com terceiros
-- [ ] **App Mobile** - Aplicativo nativo
 - [ ] **IA e Machine Learning** - Recomendações inteligentes
 
 ### **Melhorias Planejadas**
