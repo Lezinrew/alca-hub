@@ -14,6 +14,7 @@
 
 ### **📖 Guias e Tutoriais**
 - **[Instalação](docs/guides/installation/)** - Setup completo
+- **[Deploy](GUIA_DEPLOY_SERVIDOR.md)** - Deploy em servidor
 - **[Desenvolvimento](docs/guides/development/)** - Guias de desenvolvimento
 - **[Testes](docs/guides/testing/)** - Guias de teste
 
@@ -55,6 +56,7 @@
 
 ### **👨‍💻 Desenvolvedores**
 - **[Guia de Instalação](docs/guides/installation/GUIA_INSTALACAO.md)** - Setup completo
+- **[Guia de Deploy](GUIA_DEPLOY_SERVIDOR.md)** - Deploy em servidor
 - **[Desenvolvimento](docs/guides/development/)** - Guias de desenvolvimento
 - **[API](docs/guides/development/)** - Documentação da API
 
@@ -107,6 +109,7 @@
 
 ### **Instalação**
 - 🚀 **[Guia de Instalação](docs/guides/installation/GUIA_INSTALACAO.md)** - Setup completo
+- 🚀 **[Guia de Deploy](GUIA_DEPLOY_SERVIDOR.md)** - Deploy em servidor
 - 🐳 **[Docker](docs/guides/installation/)** - Instalação com Docker
 - 🔧 **[Configuração](docs/guides/installation/)** - Configurações avançadas
 

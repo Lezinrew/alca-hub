@@ -365,6 +365,11 @@ alca-hub/
 
 ## 🚀 Deploy e Produção
 
+### **📖 Guia Completo de Deploy**
+- 🚀 **[Guia de Deploy para Servidor](GUIA_DEPLOY_SERVIDOR.md)** - Instruções completas para deploy em produção
+- 🐳 **[Docker Setup](DOCKER.md)** - Configuração com Docker e Docker Compose
+- 🔧 **[Script de Inicialização](start.sh)** - Script automatizado para deploy
+
 ### **Backend (Produção)**
 ```bash
 # Instalar dependências
