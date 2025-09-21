@@ -1,8 +1,9 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import axios from "axios";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./components/ui/card";
@@ -11,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader as UISheetHeader, SheetTitle as UISheetTitle, SheetTrigger, SheetClose } from "./components/ui/sheet";
 import SideMenu from "./components/SideMenu";
+import GlobalHeader from "./components/GlobalHeader";
+import PageWrapper from "./components/PageWrapper";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
@@ -20,87 +23,204 @@ import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
 import UberStyleMap from "./components/UberStyleMap.jsx";
+import EnhancedSearchSystem from "./components/EnhancedSearchSystem";
+import MobileBookingFlow from "./components/MobileBookingFlow";
+import ProfessionalAgenda from "./components/ProfessionalAgenda";
+import BookingFlow from "./components/BookingFlow";
+import PricingDisplay from "./components/PricingDisplay";
+import AvailabilityCalendar from "./components/AvailabilityCalendar";
+import EnhancedDashboard from "./components/EnhancedDashboard";
+import ServiceManagement from "./components/ServiceManagement";
+import { PROFESSIONALS_DATA } from "./data/professionals";
+import { getOrderStats } from "./data/orders";
+import MyOrders from "./components/MyOrders";
+import ReviewScreen from "./components/ReviewScreen";
 import { API_URL } from "./lib/config";
 import AdminDashboard from "./pages/AdminDashboard";
 import Mapa from "./pages/Mapa";
 
 const API = `${API_URL}/api`;
 
-// Auth Context
-const AuthContext = createContext();
-
-const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+// Componente wrapper para busca com navegação
+const SearchWithNavigation = () => {
+  const navigate = useNavigate();
+  
+  const handleProfessionalSelect = (professional) => {
+    navigate(`/agenda/${professional.id}`);
+  };
+  
+  return (
+    <EnhancedSearchSystem 
+      onSearchResults={() => {}} 
+      onProfessionalSelect={handleProfessionalSelect} 
+    />
+  );
 };
 
-const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+// Componente para novo agendamento com profissionais recentes
+const NewBookingFlow = () => {
+  const navigate = useNavigate();
+  
+  // Dados de profissionais recentes (simulados)
+  const recentProfessionals = [
+    {
+      id: '1',
+      name: 'João Silva',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+      rating: 4.8,
+      reviews: 127,
+      lastService: 'Limpeza Residencial',
+      lastDate: '15/01/2024',
+      distance: '2.5 km',
+      responseTime: 'Resposta em 2 horas',
+      experience: '5 anos de experiência',
+      completionRate: '98%',
+      pricing: { hourly: { average: 80, min: 60, max: 120 } },
+      services: ['Limpeza Residencial', 'Limpeza Comercial', 'Organização']
+    },
+    {
+      id: '2',
+      name: 'Maria Santos',
+      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+      rating: 4.9,
+      reviews: 89,
+      lastService: 'Limpeza Industrial',
+      lastDate: '10/01/2024',
+      distance: '1.8 km',
+      responseTime: 'Resposta em 1 hora',
+      experience: '8 anos de experiência',
+      completionRate: '99%',
+      pricing: { hourly: { average: 120, min: 100, max: 150 } },
+      services: ['Limpeza Industrial', 'Manutenção', 'Limpeza Pós-Obra']
+    },
+    {
+      id: '3',
+      name: 'Carlos Oliveira',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+      rating: 4.7,
+      reviews: 156,
+      lastService: 'Organização',
+      lastDate: '08/01/2024',
+      distance: '3.2 km',
+      responseTime: 'Resposta em 3 horas',
+      experience: '10 anos de experiência',
+      completionRate: '97%',
+      pricing: { hourly: { average: 100, min: 80, max: 130 } },
+      services: ['Limpeza Comercial', 'Limpeza Industrial', 'Manutenção']
     }
-    setLoading(false);
-  }, []);
+  ];
 
-  const login = async (email, password) => {
-    try {
-      const response = await axios.post(`${API}/auth/login`, { email, password });
-      const { access_token, user: userData } = response.data;
-      
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      setUser(userData);
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erro ao fazer login' };
-    }
+  const handleProfessionalSelect = (professional) => {
+    navigate(`/agenda/${professional.id}`);
   };
 
-  const register = async (userData) => {
-    try {
-      const response = await axios.post(`${API}/auth/register`, userData);
-      const { access_token, user: newUser } = response.data;
-      
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      setUser(newUser);
-      
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.response?.data?.detail || 'Erro ao fazer cadastro' };
-    }
-  };
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Novo Agendamento</h1>
+        <p className="text-gray-600">Escolha um profissional que você já utilizou anteriormente</p>
+      </div>
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
-  };
+      <div className="grid gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <User className="h-5 w-5 mr-2 text-indigo-600" />
+            Profissionais Recentes
+          </h2>
+          
+          <div className="grid gap-4">
+            {recentProfessionals.map((professional) => (
+              <div
+                key={professional.id}
+                onClick={() => handleProfessionalSelect(professional)}
+                className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+              >
+                <div className="flex items-start space-x-4">
+                  <img
+                    src={professional.avatar}
+                    alt={professional.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">{professional.name}</h3>
+                      <div className="flex items-center space-x-2">
+                        <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                        <span className="text-sm font-medium text-gray-900">{professional.rating}</span>
+                        <span className="text-sm text-gray-500">({professional.reviews} avaliações)</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-2 flex items-center space-x-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {professional.distance}
+                      </span>
+                      <span className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {professional.responseTime}
+                      </span>
+                      <span>{professional.experience}</span>
+                    </div>
+                    
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Último serviço:</span>
+                        <span className="text-sm font-medium text-indigo-600">{professional.lastService}</span>
+                        <span className="text-sm text-gray-500">({professional.lastDate})</span>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600">Taxa de conclusão: {professional.completionRate}</span>
+                        <span className="text-sm font-medium text-green-600">
+                          R$ {professional.pricing.hourly.min} - R$ {professional.pricing.hourly.max}/hora
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {professional.services.map((service, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                        >
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-  const value = {
-    user,
-    login,
-    register,
-    logout,
-    loading
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+        <div className="bg-gray-50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Não encontrou o profissional que procura?</h3>
+          <p className="text-gray-600 mb-4">Busque por novos profissionais ou explore outras opções</p>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => navigate('/busca')}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Buscar Profissionais
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/servicos')}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Ver Todos os Serviços
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
+
+// Auth Context is now imported from ./contexts/AuthContext
+
+// AuthProvider is now imported from ./contexts/AuthContext
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedTypes = [] }) => {
@@ -119,6 +239,85 @@ const ProtectedRoute = ({ children, allowedTypes = [] }) => {
   }
 
   return children;
+};
+
+// Profile Content Wrapper
+const ProfileContentWrapper = () => {
+  const { user, logout } = useAuth();
+  
+  const handleUpdate = () => {
+    // Handle profile update
+  };
+
+  return <ProfileContent user={user} onUpdate={handleUpdate} onLogout={logout} />;
+};
+
+
+// Professional Agenda Wrapper
+const ProfessionalAgendaWrapper = () => {
+  const { professionalId } = useParams();
+  const navigate = useNavigate();
+  const [professional, setProfessional] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Buscar profissional nos dados mock
+    const fetchProfessional = async () => {
+      try {
+        // Simular delay da API
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Buscar profissional nos dados mock
+        const foundProfessional = PROFESSIONALS_DATA.find(p => p.id === professionalId);
+        
+        if (foundProfessional) {
+          setProfessional(foundProfessional);
+        } else {
+          console.error('Profissional não encontrado:', professionalId);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar profissional:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfessional();
+  }, [professionalId]);
+  
+  const handleSelectSlot = (slot) => {
+    // Handle slot selection
+    console.log('Slot selecionado:', slot);
+  };
+
+  const handleClose = () => {
+    // Navigate back to dashboard
+    navigate('/dashboard');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando agenda...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!professional) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Profissional não encontrado</h2>
+          <p className="text-gray-600">O profissional solicitado não foi encontrado.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ProfessionalAgenda professional={professional} onSelectSlot={handleSelectSlot} onClose={handleClose} />;
 };
 
 // Components
@@ -421,39 +620,33 @@ const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    if (user) {
+      loadData();
+    }
+  }, [user?.id]); // Só executa quando o ID do usuário muda, não quando o objeto inteiro muda
 
   const loadData = async () => {
     try {
-      // Load different data based on user type
+      // Usar dados mock em vez de chamadas de API
       if (user.tipo === 'morador') {
-        const servicesResponse = await axios.get(`${API}/services`);
-        setServices(servicesResponse.data);
+        setServices([]); // Dados mock vazios por enquanto
       } else if (user.tipo === 'prestador') {
-        const myServicesResponse = await axios.get(`${API}/my-services`);
-        setMyServices(myServicesResponse.data);
+        setMyServices([]); // Dados mock vazios por enquanto
       }
       
-      const bookingsResponse = await axios.get(`${API}/bookings`);
-      setBookings(bookingsResponse.data);
+      setBookings([]); // Dados mock vazios por enquanto
 
-      // Get stats for admin or general info
+      // Stats mock para admin
       if (user.tipo === 'admin') {
-        try {
-          const statsResponse = await axios.get(`${API}/stats/overview`);
-          setStats(statsResponse.data);
-        } catch (error) {
-          console.log('Stats not available for this user');
-        }
+        setStats({
+          totalUsers: 0,
+          totalServices: 0,
+          totalBookings: 0
+        });
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar dados",
-        description: "Alguns dados podem não estar disponíveis",
-      });
+      // Não mostrar toast de erro para dados mock
     }
   };
 
@@ -463,16 +656,13 @@ const Dashboard = () => {
   };
 
   const getPendingPayments = () => {
-    return bookings.filter(booking => 
-      booking.payment_status === 'pending' && user.id === booking.morador_id
-    ).length;
+    const stats = getOrderStats();
+    return stats.pending;
   };
 
   const getCompletedServices = () => {
-    return bookings.filter(booking => 
-      booking.status === 'concluido' && 
-      (user.tipo === 'morador' ? user.id === booking.morador_id : user.id === booking.prestador_id)
-    ).length;
+    const stats = getOrderStats();
+    return stats.completed;
   };
 
   const getTotalEarnings = () => {
@@ -538,58 +728,12 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <img src="/logo-alca-hub.png" alt="Logo Alça Hub" className="h-8" />
-              <Sheet>
-                <SheetTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Abrir menu"
-                    className="ml-3 p-2 rounded hover:bg-gray-100 active:scale-95 transition cursor-pointer"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-700">
-                      <path fillRule="evenodd" d="M3.75 6.75A.75.75 0 0 1 4.5 6h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Zm0 5.25a.75.75 0 0 1 .75-.75h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1-.75-.75Zm.75 4.5a.75.75 0 0 0 0 1.5h15a.75.75 0 0 0 0-1.5h-15Z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80">
-                  <UISheetHeader>
-                    <UISheetTitle>Menu</UISheetTitle>
-                  </UISheetHeader>
-                  <SheetClose asChild>
-                    <div>
-                      <SideMenu onNavigate={(p) => navigate(p)} onClose={() => {}} />
-                    </div>
-                  </SheetClose>
-                </SheetContent>
-              </Sheet>
-              <span className="ml-2 text-xl font-bold text-gray-900">Alça Hub</span>
-              <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                v2.0
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                <span className="font-semibold">{user.nome}</span>
-              </span>
-              {user.tipo === 'morador' ? (
-                <Button size="sm" onClick={() => setActiveTab('agendamentos')}>
-                  Meus Pedidos
-                </Button>
-              ) : (
-                <Badge variant={user.tipo === 'prestador' ? 'secondary' : 'destructive'}>
-                  {user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-6">
+      {/* Global Header */}
+      <GlobalHeader 
+        onMenuToggle={() => {}} 
+        showMenuButton={true}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -598,9 +742,9 @@ const Dashboard = () => {
         </div>
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20">
-        <div className="grid grid-cols-4 md:grid-cols-5 max-w-md mx-auto">
+      {/* Bottom Navigation - Only on mobile */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20 md:hidden">
+        <div className="grid grid-cols-4 max-w-md mx-auto">
           {getMenuItems().map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -692,7 +836,8 @@ const BookServiceDialog = ({ service, onSuccess }) => {
         observacoes: formData.observacoes
       };
 
-      await axios.post(`${API}/bookings`, bookingData);
+      // Mock booking creation
+      console.log('Agendamento criado:', bookingData);
       
       toast({
         title: "Agendamento realizado!",
@@ -817,7 +962,8 @@ const CreateServiceDialog = ({ onSuccess }) => {
         preco_por_hora: parseFloat(formData.preco_por_hora)
       };
 
-      await axios.post(`${API}/services`, serviceData);
+      // Mock service creation
+      console.log('Serviço criado:', serviceData);
       
       toast({
         title: "Serviço criado!",
@@ -994,7 +1140,8 @@ const BookingCard = ({ booking, onUpdate }) => {
 
   const updateBookingStatus = async (newStatus) => {
     try {
-      await axios.patch(`${API}/bookings/${booking.id}`, { status: newStatus });
+      // Mock booking status update
+      console.log('Status do agendamento atualizado:', { bookingId: booking.id, status: newStatus });
       toast({
         title: "Status atualizado!",
         description: `Agendamento ${getStatusText(newStatus).toLowerCase()}`,
@@ -1121,13 +1268,18 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
       const pixData = {
         booking_id: booking.id,
         payer_email: user.email,
-        payer_name: user.nome,
+        payer_name: user.nome || 'Usuário',
         payer_identification: user.cpf,
         payer_identification_type: "CPF"
       };
 
-      const response = await axios.post(`${API}/payments/pix`, pixData);
-      setPaymentData(response.data);
+      // Mock PIX payment
+      const mockResponse = {
+        qr_code: 'mock_qr_code_data',
+        qr_code_url: 'https://example.com/qr',
+        payment_id: 'mock_payment_id'
+      };
+      setPaymentData(mockResponse);
       setQrCodeVisible(true);
       
       toast({
@@ -1151,8 +1303,8 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
   const startPaymentPolling = (paymentId) => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await axios.get(`${API}/payments/${paymentId}/status`);
-        const status = response.data.status;
+        // Mock payment status
+        const status = 'completed';
         setPaymentStatus(status);
         
         if (status === 'approved') {
@@ -1392,7 +1544,7 @@ const HomeContent = ({ user, stats }) => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Olá, {user.nome.split(' ')[0]}! 👋
+          Olá, {user.nome ? user.nome.split(' ')[0] : 'Usuário'}! 👋
         </h1>
         <p className="text-gray-600">
           {user.tipo === 'morador' 
@@ -1406,7 +1558,10 @@ const HomeContent = ({ user, stats }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {user.tipo === 'morador' && (
           <>
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/meus-pedidos')}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-blue-100">
@@ -1414,12 +1569,15 @@ const HomeContent = ({ user, stats }) => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Meus Pedidos</p>
-                    <p className="text-xl font-bold text-gray-900">12</p>
+                    <p className="text-xl font-bold text-gray-900">{getOrderStats().total}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/meus-pedidos?filter=pendente')}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-orange-100">
@@ -1432,7 +1590,10 @@ const HomeContent = ({ user, stats }) => {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/meus-pedidos?filter=concluido')}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-green-100">
@@ -1463,7 +1624,10 @@ const HomeContent = ({ user, stats }) => {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/meus-pedidos')}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-blue-100">
@@ -1471,7 +1635,7 @@ const HomeContent = ({ user, stats }) => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-500">Meus Pedidos</p>
-                    <p className="text-xl font-bold text-gray-900">8</p>
+                    <p className="text-xl font-bold text-gray-900">{getOrderStats().total}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1499,42 +1663,60 @@ const HomeContent = ({ user, stats }) => {
           <CardTitle>Ações Rápidas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             {user.tipo === 'morador' && (
               <>
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/busca')}>
+                  <Users className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Buscar Serviços</span>
+                </Button>
                 <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/mapa')}>
                   <Map className="h-6 w-6 mb-2" />
                   <span className="text-xs">Ver Mapa</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/servicos')}>
-                  <Users className="h-6 w-6 mb-2" />
-                  <span className="text-xs">Buscar Serviços</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/meus-pedidos')}>
-                  <Calendar className="h-6 w-6 mb-2" />
-                  <span className="text-xs">Meus Pedidos</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/avaliar')}>
-                  <Star className="h-6 w-6 mb-2" />
-                  <span className="text-xs">Avaliar</span>
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/agendamento')}>
+                  <Clock className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agendar</span>
                 </Button>
               </>
             )}
+            
+            {/* Agendamentos Recentes */}
+            {user.tipo === 'morador' && (
+              <>
+                <div className="col-span-3">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recentes</h3>
+                </div>
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/agenda/1')}>
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agenda João</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/agenda/2')}>
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agenda Maria</span>
+                </Button>
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/agenda/3')}>
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span className="text-xs">Agenda Carlos</span>
+                </Button>
+              </>
+            )}
+            
             {user.tipo === 'prestador' && (
               <>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/servicos')}>
                   <Plus className="h-6 w-6 mb-2" />
                   <span className="text-xs">Novo Serviço</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/agenda/1')}>
                   <Calendar className="h-6 w-6 mb-2" />
-                  <span className="text-xs">Agenda</span>
+                  <span className="text-xs">Minha Agenda</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/pagamento')}>
                   <CreditCard className="h-6 w-6 mb-2" />
                   <span className="text-xs">Faturamento</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
+                <Button variant="outline" className="h-20 flex-col hover:bg-gray-100 active:scale-95 transition cursor-pointer" onClick={() => navigate('/conta')}>
                   <Settings className="h-6 w-6 mb-2" />
                   <span className="text-xs">Configurações</span>
                 </Button>
@@ -1656,8 +1838,12 @@ const EarningsContent = ({ user }) => {
 
   const loadEarnings = async () => {
     try {
-      const response = await axios.get(`${API}/profile/earnings`);
-      setEarnings(response.data);
+      // Mock earnings data
+      setEarnings({
+        total: 0,
+        thisMonth: 0,
+        lastMonth: 0
+      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -1776,9 +1962,10 @@ const EarningsContent = ({ user }) => {
 };
 
 const ProfileContent = ({ user, onUpdate, onLogout }) => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('dados');
   const [profile, setProfile] = useState({
-    nome: user.nome,
+    nome: user.nome || '',
     telefone: user.telefone,
     endereco: user.endereco,
     bio: user.bio || '',
@@ -1789,11 +1976,22 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     notificacoes_ativadas: user.notificacoes_ativadas !== false,
     privacidade_perfil: user.privacidade_perfil || 'publico'
   });
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [newPaymentMethod, setNewPaymentMethod] = useState({
+    type: 'card',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    cardholderName: '',
+    bankName: ''
+  });
   const { toast } = useToast();
 
   const handleProfileUpdate = async () => {
     try {
-      await axios.put(`${API}/profile`, profile);
+      // Mock profile update
+      console.log('Perfil atualizado:', profile);
       toast({
         title: "Perfil atualizado!",
         description: "Suas informações foram salvas com sucesso.",
@@ -1808,9 +2006,70 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     }
   };
 
+  const handleAddPaymentMethod = () => {
+    setShowPaymentModal(true);
+  };
+
+  const handleSavePaymentMethod = async () => {
+    try {
+      // Validação básica
+      if (!newPaymentMethod.cardNumber || !newPaymentMethod.expiryDate || !newPaymentMethod.cvv || !newPaymentMethod.cardholderName) {
+        toast({
+          variant: "destructive",
+          title: "Campos obrigatórios",
+          description: "Preencha todos os campos obrigatórios.",
+        });
+        return;
+      }
+
+      // Mock save payment method
+      const paymentMethod = {
+        id: Date.now().toString(),
+        type: newPaymentMethod.type,
+        cardNumber: newPaymentMethod.cardNumber.replace(/\s/g, ''),
+        expiryDate: newPaymentMethod.expiryDate,
+        cardholderName: newPaymentMethod.cardholderName,
+        bankName: newPaymentMethod.bankName,
+        lastFour: newPaymentMethod.cardNumber.slice(-4),
+        isDefault: paymentMethods.length === 0
+      };
+
+      setPaymentMethods(prev => [...prev, paymentMethod]);
+      setNewPaymentMethod({
+        type: 'card',
+        cardNumber: '',
+        expiryDate: '',
+        cvv: '',
+        cardholderName: '',
+        bankName: ''
+      });
+      setShowPaymentModal(false);
+
+      toast({
+        title: "Forma de pagamento adicionada!",
+        description: "Sua forma de pagamento foi salva com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a forma de pagamento.",
+      });
+    }
+  };
+
+  const handleRemovePaymentMethod = (id) => {
+    setPaymentMethods(prev => prev.filter(method => method.id !== id));
+    toast({
+      title: "Forma de pagamento removida",
+      description: "A forma de pagamento foi removida com sucesso.",
+    });
+  };
+
   const handleSettingsUpdate = async () => {
     try {
-      await axios.put(`${API}/settings`, settings);
+      // Mock settings update
+      console.log('Configurações atualizadas:', settings);
       toast({
         title: "Configurações salvas!",
         description: "Suas preferências foram atualizadas.",
@@ -1837,19 +2096,29 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
       {/* Profile Header */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">
-                {user.nome.charAt(0).toUpperCase()}
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">
+                  {user.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">{user.nome ? user.nome.split(' ')[0] : 'Usuário'}</h3>
+                <p className="text-gray-600">{user.email}</p>
+                <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
+                  {user.tipo === 'morador' ? '🏠 Morador' : '🔧 Prestador'}
+                </Badge>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold">{user.nome}</h3>
-              <p className="text-gray-600">{user.email}</p>
-              <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
-                {user.tipo === 'morador' ? '🏠 Morador' : '🔧 Prestador'}
-              </Badge>
-            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2"
+            >
+              <Home className="h-4 w-4" />
+              <span>Voltar ao Dashboard</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -1936,15 +2205,48 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
                 <CardDescription>Gerencie suas formas de pagamento</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma forma de pagamento</h3>
-                  <p className="text-gray-500 mb-4">Adicione cartões ou contas para facilitar os pagamentos</p>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Forma de Pagamento
-                  </Button>
-                </div>
+                {paymentMethods.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma forma de pagamento</h3>
+                    <p className="text-gray-500 mb-4">Adicione cartões ou contas para facilitar os pagamentos</p>
+                    <Button onClick={handleAddPaymentMethod}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Forma de Pagamento
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {paymentMethods.map((method) => (
+                      <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <CreditCard className="h-8 w-8 text-gray-400" />
+                          <div>
+                            <p className="font-medium">**** **** **** {method.lastFour}</p>
+                            <p className="text-sm text-gray-500">{method.cardholderName}</p>
+                            <p className="text-sm text-gray-500">{method.expiryDate}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {method.isDefault && (
+                            <Badge variant="default">Padrão</Badge>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemovePaymentMethod(method.id)}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <Button onClick={handleAddPaymentMethod} className="w-full">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Outra Forma de Pagamento
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -2014,6 +2316,95 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
           )}
         </div>
       </div>
+
+      {/* Modal para Adicionar Forma de Pagamento */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Forma de Pagamento</DialogTitle>
+            <DialogDescription>
+              Adicione um cartão de crédito ou débito para facilitar seus pagamentos.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="cardNumber">Número do Cartão</Label>
+              <Input
+                id="cardNumber"
+                placeholder="1234 5678 9012 3456"
+                value={newPaymentMethod.cardNumber}
+                onChange={(e) => {
+                  let value = e.target.value.replace(/\s/g, '');
+                  if (value.length > 16) value = value.slice(0, 16);
+                  value = value.replace(/(.{4})/g, '$1 ').trim();
+                  setNewPaymentMethod({ ...newPaymentMethod, cardNumber: value });
+                }}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="expiryDate">Validade</Label>
+                <Input
+                  id="expiryDate"
+                  placeholder="MM/AA"
+                  value={newPaymentMethod.expiryDate}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length >= 2) {
+                      value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                    }
+                    setNewPaymentMethod({ ...newPaymentMethod, expiryDate: value });
+                  }}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="cvv">CVV</Label>
+                <Input
+                  id="cvv"
+                  placeholder="123"
+                  value={newPaymentMethod.cvv}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setNewPaymentMethod({ ...newPaymentMethod, cvv: value });
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="cardholderName">Nome no Cartão</Label>
+              <Input
+                id="cardholderName"
+                placeholder="Nome como está no cartão"
+                value={newPaymentMethod.cardholderName}
+                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, cardholderName: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="bankName">Banco (opcional)</Label>
+              <Input
+                id="bankName"
+                placeholder="Nome do banco"
+                value={newPaymentMethod.bankName}
+                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, bankName: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSavePaymentMethod}>
+              Adicionar Cartão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -2030,10 +2421,8 @@ function App() {
             <Route path="/conta" element={<ProtectedRoute><ProfileContent user={{}} onUpdate={() => {}} onLogout={() => {}} /></ProtectedRoute>} />
             <Route path="/pagamento" element={<ProtectedRoute><EarningsPlaceholder /></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><SecurityPlaceholder /></ProtectedRoute>} />
-            <Route path="/meus-pedidos" element={<ProtectedRoute><BookingsContent bookings={[]} onUpdate={() => {}} /></ProtectedRoute>} />
             <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
             <Route path="/servicos" element={<ProtectedRoute><ServicesContent services={[]} onBook={() => {}} /></ProtectedRoute>} />
-            <Route path="/avaliar" element={<ProtectedRoute><ReviewPlaceholder /></ProtectedRoute>} />
             <Route
               path="/dashboard"
               element={
@@ -2051,6 +2440,24 @@ function App() {
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<ProtectedRoute><EnhancedDashboard /></ProtectedRoute>} />
+            <Route path="/dashboard/inicio" element={<ProtectedRoute><EnhancedDashboard /></ProtectedRoute>} />
+            <Route path="/dashboard/servicos" element={<ProtectedRoute><PageWrapper><SearchWithNavigation /></PageWrapper></ProtectedRoute>} />
+            <Route path="/dashboard/agendamentos" element={<ProtectedRoute><PageWrapper><MyOrders /></PageWrapper></ProtectedRoute>} />
+            <Route path="/dashboard/meus-servicos" element={<ProtectedRoute><PageWrapper><ServiceManagement /></PageWrapper></ProtectedRoute>} />
+            <Route path="/dashboard/faturamento" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Faturamento</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
+            <Route path="/dashboard/conta" element={<ProtectedRoute><PageWrapper><ProfileContentWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/busca" element={<ProtectedRoute><PageWrapper><SearchWithNavigation /></PageWrapper></ProtectedRoute>} />
+            <Route path="/mobile-booking" element={<ProtectedRoute><MobileBookingFlow /></ProtectedRoute>} />
+            <Route path="/agenda/:professionalId" element={<ProtectedRoute><PageWrapper><ProfessionalAgendaWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/agendamento" element={<ProtectedRoute><PageWrapper><NewBookingFlow /></PageWrapper></ProtectedRoute>} />
+            <Route path="/servicos" element={<ProtectedRoute><PageWrapper><ServiceManagement /></PageWrapper></ProtectedRoute>} />
+            <Route path="/mapa" element={<ProtectedRoute><PageWrapper><UberStyleMap /></PageWrapper></ProtectedRoute>} />
+            <Route path="/meus-pedidos" element={<ProtectedRoute><PageWrapper><MyOrders /></PageWrapper></ProtectedRoute>} />
+            <Route path="/avaliar" element={<ProtectedRoute><PageWrapper><ReviewScreen /></PageWrapper></ProtectedRoute>} />
+            <Route path="/conta" element={<ProtectedRoute><PageWrapper><ProfileContentWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Pagamento</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
+            <Route path="/seguranca" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Segurança</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
         <Toaster />

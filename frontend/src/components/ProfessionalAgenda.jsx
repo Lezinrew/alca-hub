@@ -1,15 +1,19 @@
 // Agenda do Profissional - Alça Hub
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Calendar, Clock, DollarSign, Star, MapPin, User, Phone, MessageCircle, CheckCircle, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import DatePicker from './DatePicker'
 
-const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose }) => {
+const ProfessionalAgenda = ({ professional, service = null, onBookingSelect, onClose }) => {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   const [selectedDuration, setSelectedDuration] = useState(1)
+  const [selectedPackage, setSelectedPackage] = useState(null)
   const [bookingStep, setBookingStep] = useState(1) // 1: Seleção, 2: Confirmação, 3: Finalização
   const [availableSlots, setAvailableSlots] = useState([])
   const [pricing, setPricing] = useState(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const confirmButtonRef = useRef(null)
 
   // Dados do profissional (em produção viria da API)
   const professionalData = {
@@ -57,8 +61,8 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
         start: '08:00',
         end: '18:00'
       },
-      workingDays: ['segunda', 'terça', 'quarta', 'quinta', 'sexta'],
-      blockedDates: ['2024-01-20', '2024-01-25'],
+      workingDays: ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'],
+      blockedDates: [],
       nextAvailable: '2024-01-15'
     },
     services: [
@@ -88,17 +92,34 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
     const slots = []
     const startHour = 8
     const endHour = 18
+    const selectedDateObj = new Date(date)
+    const today = new Date()
+    const isToday = selectedDateObj.toDateString() === today.toDateString()
+    const currentHour = today.getHours()
+    const currentMinute = today.getMinutes()
     
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        
+        // Verificar se é um horário passado (apenas se for hoje)
+        let isPastTime = false
+        if (isToday) {
+          const slotHour = hour
+          const slotMinute = minute
+          if (slotHour < currentHour || (slotHour === currentHour && slotMinute <= currentMinute)) {
+            isPastTime = true
+          }
+        }
+        
         const isAvailable = Math.random() > 0.3 // Simular disponibilidade
         
         if (isAvailable) {
           slots.push({
             time: timeString,
             available: true,
-            price: professionalData.pricing.hourly.average
+            price: professionalData.pricing.hourly.average,
+            isPastTime: isPastTime
           })
         }
       }
@@ -128,6 +149,26 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
     const dates = []
     const today = new Date()
     
+    // Incluir hoje se ainda houver horários disponíveis
+    const todayString = today.toISOString().split('T')[0]
+    const todayDayOfWeek = today.toLocaleDateString('pt-BR', { weekday: 'long' })
+    const isTodayWorkingDay = professionalData.availability.workingDays.includes(todayDayOfWeek)
+    const isTodayBlocked = professionalData.availability.blockedDates.includes(todayString)
+    
+    if (isTodayWorkingDay && !isTodayBlocked) {
+      dates.push({
+        date: todayString,
+        display: 'Hoje - ' + today.toLocaleDateString('pt-BR', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric',
+          weekday: 'long'
+        }),
+        available: true
+      })
+    }
+    
+    // Próximos 30 dias
     for (let i = 1; i <= 30; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() + i)
@@ -172,9 +213,15 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
     setSelectedDuration(duration)
   }
 
+  // Selecionar pacote
+  const handlePackageSelect = (pkg) => {
+    setSelectedPackage(pkg)
+    setSelectedDuration(pkg.duration)
+  }
+
   // Prosseguir para confirmação
   const handleContinue = () => {
-    if (selectedDate && selectedTime && selectedDuration) {
+    if (selectedDate && selectedTime && (selectedPackage || selectedDuration)) {
       setBookingStep(2)
     }
   }
@@ -183,16 +230,35 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
   const handleConfirmBooking = () => {
     const booking = {
       professional: professionalData,
-      service: service,
+      service: service || { name: 'Limpeza Residencial', basePrice: 100 },
+      package: selectedPackage,
       date: selectedDate,
       time: selectedTime,
       duration: selectedDuration,
-      totalPrice: totalPrice,
+      totalPrice: selectedPackage ? selectedPackage.price : totalPrice,
       status: 'pending'
     }
     
     onBookingSelect?.(booking)
     setBookingStep(3)
+  }
+
+  const handleDatePickerSelect = (bookingData) => {
+    console.log('Agendamento selecionado:', bookingData)
+    setShowDatePicker(false)
+    // Aqui você pode processar o agendamento
+    // Por exemplo, navegar para uma página de confirmação
+  }
+
+  const handleCloseDatePicker = () => {
+    setShowDatePicker(false)
+    // Retornar à página anterior e focar no botão de confirmação
+    setTimeout(() => {
+      if (confirmButtonRef.current) {
+        confirmButtonRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        confirmButtonRef.current.focus()
+      }
+    }, 100)
   }
 
   return (
@@ -264,28 +330,35 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                 </div>
               </div>
 
-              {/* Preços */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Preços e Pacotes</h3>
+              {/* Seleção de Pacotes */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Escolha um Pacote</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {professionalData.pricing.packages.map((pkg, index) => (
-                    <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900">{pkg.name}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{pkg.description}</p>
+                    <button
+                      key={index}
+                      onClick={() => handlePackageSelect(pkg)}
+                      className={`p-4 rounded-lg border text-left transition-colors ${
+                        selectedPackage?.name === pkg.name
+                          ? 'border-blue-400 bg-blue-100 text-blue-800'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <h4 className="font-semibold text-gray-900 mb-2">{pkg.name}</h4>
+                      <p className="text-sm text-gray-600 mb-3">{pkg.description}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-primary-500">
+                        <span className="text-2xl font-bold text-green-600">
                           R$ {pkg.price}
                         </span>
                         <span className="text-sm text-gray-500">{pkg.duration}h</span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {/* Seleção de Data */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Selecione a Data</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {availableDates.slice(0, 8).map((dateInfo) => (
                     <button
@@ -293,13 +366,21 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                       onClick={() => handleDateSelect(dateInfo.date)}
                       className={`p-3 rounded-lg border text-left transition-colors ${
                         selectedDate === dateInfo.date
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          ? 'border-blue-400 bg-blue-100 text-blue-800'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className="text-sm font-medium">{dateInfo.display}</div>
                     </button>
                   ))}
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-500 hover:text-primary-600 transition-colors"
+                  >
+                    📅 Ver mais datas disponíveis
+                  </button>
                 </div>
               </div>
 
@@ -311,11 +392,13 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                     {availableSlots.map((slot, index) => (
                       <button
                         key={index}
-                        onClick={() => handleTimeSelect(slot.time)}
-                        disabled={!slot.available}
+                        onClick={() => !slot.isPastTime ? handleTimeSelect(slot.time) : null}
+                        disabled={!slot.available || slot.isPastTime}
                         className={`p-3 rounded-lg border text-center transition-colors ${
                           selectedTime === slot.time
-                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            ? 'border-blue-400 bg-blue-100 text-blue-800'
+                            : slot.isPastTime
+                            ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
                             : slot.available
                             ? 'border-gray-200 hover:border-gray-300'
                             : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
@@ -340,7 +423,7 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                         onClick={() => handleDurationSelect(duration)}
                         className={`p-4 rounded-lg border text-center transition-colors ${
                           selectedDuration === duration
-                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            ? 'border-blue-400 bg-blue-100 text-blue-800'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -353,6 +436,17 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                   </div>
                 </div>
               )}
+
+              {/* Botão Principal para Abrir Calendário */}
+              <div className="mt-8">
+                <button
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full bg-blue-600 text-white py-4 rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <Calendar className="w-5 h-5" />
+                  Selecione a Data
+                </button>
+              </div>
 
               {/* Resumo e Botão Continuar */}
               {selectedDate && selectedTime && selectedDuration && (
@@ -375,6 +469,10 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                       <p className="font-medium">{selectedTime}</p>
                     </div>
                     <div>
+                      <span className="text-gray-600">Pacote:</span>
+                      <p className="font-medium">{selectedPackage?.name || 'Serviço Personalizado'}</p>
+                    </div>
+                    <div>
                       <span className="text-gray-600">Duração:</span>
                       <p className="font-medium">{selectedDuration} horas</p>
                     </div>
@@ -383,16 +481,25 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-semibold">Total:</span>
                       <span className="text-2xl font-bold text-green-600">
-                        R$ {totalPrice}
+                        R$ {selectedPackage ? selectedPackage.price : totalPrice}
                       </span>
                     </div>
                   </div>
-                  <button
-                    onClick={handleContinue}
-                    className="w-full mt-4 bg-primary-500 text-white py-3 rounded-lg hover:bg-primary-600 transition-colors"
-                  >
-                    Continuar para Confirmação
-                  </button>
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={handleContinue}
+                      className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                    >
+                      Continuar para Confirmação
+                    </button>
+                    <button
+                      onClick={handleConfirmBooking}
+                      className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      Finalizar Agendamento
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -412,7 +519,7 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                   </div>
                   <div>
                     <span className="text-gray-600">Serviço:</span>
-                    <p className="font-medium">{service.name}</p>
+                    <p className="font-medium">{service?.name || 'Limpeza Residencial'}</p>
                   </div>
                   <div>
                     <span className="text-gray-600">Data:</span>
@@ -450,8 +557,9 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
                 </button>
                 <button
                   onClick={handleConfirmBooking}
-                  className="flex-1 bg-primary-500 text-white py-3 rounded-lg hover:bg-primary-600 transition-colors"
+                  className="flex-1 bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold flex items-center justify-center gap-2"
                 >
+                  <CheckCircle className="w-5 h-5" />
                   Confirmar Agendamento
                 </button>
               </div>
@@ -477,6 +585,15 @@ const ProfessionalAgenda = ({ professional, service, onBookingSelect, onClose })
           )}
         </div>
       </motion.div>
+      
+      {/* DatePicker Modal */}
+      {showDatePicker && (
+        <DatePicker
+          onDateSelect={handleDatePickerSelect}
+          onClose={handleCloseDatePicker}
+          professional={professionalData}
+        />
+      )}
     </div>
   )
 }

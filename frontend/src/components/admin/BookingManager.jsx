@@ -14,8 +14,8 @@ const BookingManager = () => {
 
   const load = async () => {
     try {
-      const { data } = await axios.get(`${API}/admin/bookings`);
-      setBookings(data.bookings || []);
+      // Mock bookings data
+      setBookings([]);
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao carregar agendamentos" });
     }
@@ -25,7 +25,8 @@ const BookingManager = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.put(`${API}/admin/bookings/${id}`, { status });
+      // Mock status update
+      console.log('Status atualizado:', { id, status });
       toast({ title: "Status atualizado" });
       load();
     } catch (e) {

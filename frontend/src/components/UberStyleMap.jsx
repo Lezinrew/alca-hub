@@ -7,9 +7,7 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap } from 'lucide-react';
-import axios from 'axios';
 import { useToast } from '../hooks/use-toast';
-import { API_URL } from '../lib/config';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -109,7 +107,7 @@ const UberStyleMap = ({ user }) => {
   const mapRef = useRef();
   const { toast } = useToast();
 
-  const API = `${API_URL}/api`;
+  // API removida - usando dados mock
 
   // Get user's current location
   useEffect(() => {
@@ -142,7 +140,8 @@ const UberStyleMap = ({ user }) => {
 
   const updateUserLocation = async (lat, lng) => {
     try {
-      await axios.put(`${API}/users/location?latitude=${lat}&longitude=${lng}`);
+      // Mock location update
+      console.log('Localização atualizada:', { lat, lng });
     } catch (error) {
       console.error('Error updating location:', error);
     }
@@ -161,8 +160,8 @@ const UberStyleMap = ({ user }) => {
         params.append('categoria', filters.categoria);
       }
 
-      const response = await axios.get(`${API}/map/providers-nearby?${params}`);
-      setProviders(response.data.providers);
+      // Mock providers data
+      setProviders([]);
     } catch (error) {
       console.error('Error loading providers:', error);
       toast({
@@ -182,11 +181,10 @@ const UberStyleMap = ({ user }) => {
 
   const handleNegotiate = async (provider, service) => {
     try {
-      const response = await axios.post(`${API}/chat/conversations`, {
-        provider_id: provider.provider_id,
-        service_id: service.id,
-        initial_message: `Olá! Tenho interesse no seu serviço de ${service.nome}. Podemos negociar o valor?`
-      });
+      // Mock chat conversation
+      console.log('Conversa iniciada com:', provider.provider_id);
+      console.log('Serviço:', service.id);
+      console.log('Mensagem inicial:', `Olá! Tenho interesse no seu serviço de ${service.nome}. Podemos negociar o valor?`);
 
       toast({
         title: "Conversa iniciada! 💬",
@@ -194,7 +192,7 @@ const UberStyleMap = ({ user }) => {
       });
 
       // Here you would navigate to chat screen
-      console.log('Conversation created:', response.data);
+      console.log('Conversation created:', { provider: provider.provider_id, service: service.id });
     } catch (error) {
       toast({
         variant: "destructive",

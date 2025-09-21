@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { Search, MapPin, Calendar, Star, Filter, Clock, Users, TrendingUp, CheckCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import SearchSystem from './SearchSystem'
+import EnhancedSearchSystem from './EnhancedSearchSystem'
 import ProfessionalAgenda from './ProfessionalAgenda'
 import BookingFlow from './BookingFlow'
 import PricingDisplay from './PricingDisplay'
@@ -19,6 +19,7 @@ const EnhancedDashboard = () => {
   const [showCalendar, setShowCalendar] = useState(false)
   const [recentBookings, setRecentBookings] = useState([])
   const [favorites, setFavorites] = useState([])
+  const [scheduledAppointments, setScheduledAppointments] = useState([])
 
   // Dados de exemplo
   const mockData = {
@@ -35,6 +36,38 @@ const EnhancedDashboard = () => {
       totalSpent: 1250,
       averageRating: 4.8
     },
+    scheduledAppointments: [
+      {
+        id: 1,
+        service: 'Limpeza Residencial',
+        professional: 'João Silva',
+        date: '2024-01-20',
+        time: '09:00',
+        duration: 2,
+        status: 'confirmado',
+        address: 'Rua das Flores, 123 - Vila Madalena, São Paulo'
+      },
+      {
+        id: 2,
+        service: 'Organização Residencial',
+        professional: 'Maria Santos',
+        date: '2024-01-22',
+        time: '14:00',
+        duration: 3,
+        status: 'pendente',
+        address: 'Rua das Flores, 123 - Vila Madalena, São Paulo'
+      },
+      {
+        id: 3,
+        service: 'Limpeza Comercial',
+        professional: 'Carlos Oliveira',
+        date: '2024-01-25',
+        time: '08:00',
+        duration: 4,
+        status: 'confirmado',
+        address: 'Av. Paulista, 1000 - Bela Vista, São Paulo'
+      }
+    ],
     recentBookings: [
       {
         id: 1,
@@ -68,9 +101,9 @@ const EnhancedDashboard = () => {
     setSearchResults(results)
   }
 
-  const handleProfessionalSelect = (service) => {
-    setSelectedProfessional(service.professional)
-    setSelectedService(service)
+  const handleProfessionalSelect = (professional) => {
+    setSelectedProfessional(professional)
+    setSelectedService(professional.services?.[0] || null)
     setShowAgenda(true)
   }
 
@@ -129,10 +162,82 @@ const EnhancedDashboard = () => {
       case 'search':
         return (
           <div>
-            <SearchSystem
+            <EnhancedSearchSystem
               onSearchResults={handleSearchResults}
               onProfessionalSelect={handleProfessionalSelect}
             />
+          </div>
+        )
+
+      case 'scheduled':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Horários Agendados</h2>
+            
+            {mockData.scheduledAppointments.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum horário agendado
+                </h3>
+                <p className="text-gray-500">
+                  Você ainda não tem agendamentos confirmados
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {mockData.scheduledAppointments.map((appointment) => (
+                  <motion.div
+                    key={appointment.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Calendar className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{appointment.service}</h3>
+                            <p className="text-sm text-gray-600">Profissional: {appointment.professional}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar className="w-4 h-4" />
+                            <span>{new Date(appointment.date).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            <span>{appointment.time} ({appointment.duration}h)</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <MapPin className="w-4 h-4" />
+                            <span className="truncate">{appointment.address}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          appointment.status === 'confirmado'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {appointment.status === 'confirmado' ? 'Confirmado' : 'Pendente'}
+                        </span>
+                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                          Ver Detalhes
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         )
 
@@ -351,7 +456,6 @@ const EnhancedDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-gray-900">Alça Hub</h1>
               <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
                 <span>{mockData.user.location}</span>

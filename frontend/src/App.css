@@ -32,8 +32,6 @@
   }
 }
 
-/* Leaflet CSS imports */
-@import 'leaflet/dist/leaflet.css';
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
