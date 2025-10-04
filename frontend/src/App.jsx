@@ -28,6 +28,8 @@ import MobileBookingFlow from "./components/MobileBookingFlow";
 import ProfessionalAgenda from "./components/ProfessionalAgenda";
 import BookingFlow from "./components/BookingFlow";
 import PricingDisplay from "./components/PricingDisplay";
+import LoginForm from "./components/LoginForm";
+import ModeSwitcher from "./components/ModeSwitcher";
 import AvailabilityCalendar from "./components/AvailabilityCalendar";
 import EnhancedDashboard from "./components/EnhancedDashboard";
 import ServiceManagement from "./components/ServiceManagement";
@@ -322,84 +324,7 @@ const ProfessionalAgendaWrapper = () => {
 
 // Components
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const result = await login(email, password);
-    
-    if (result.success) {
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao Alça Hub",
-      });
-      navigate('/dashboard');
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Erro no login",
-        description: result.error,
-      });
-    }
-    
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-indigo-900">Alça Hub</CardTitle>
-          <CardDescription>Entre na sua conta para continuar</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-            <Link to="/forgot-password" className="text-sm text-[#6366F1] hover:underline text-center">
-              Esqueceu a senha?
-            </Link>
-            <p className="text-sm text-center">
-              Não tem conta?{" "}
-              <Link to="/register" className="text-indigo-600 hover:underline">
-                Cadastre-se
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
+  return <LoginForm />;
 };
 
 // Placeholder pages to satisfy new routes if not already present
@@ -427,7 +352,7 @@ const Register = () => {
     nome: "",
     telefone: "",
     endereco: "",
-    tipo: ""
+    tipos: ["morador"] // Array de tipos selecionados
   });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -440,6 +365,16 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (formData.tipos.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Erro no cadastro",
+        description: "Selecione pelo menos um tipo de usuário",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     const result = await register(formData);
@@ -447,9 +382,9 @@ const Register = () => {
     if (result.success) {
       toast({
         title: "Cadastro realizado com sucesso!",
-        description: "Bem-vindo ao Alça Hub",
+        description: "Agora faça login para continuar",
       });
-      navigate('/dashboard');
+      navigate('/login');
     } else {
       toast({
         variant: "destructive",
@@ -524,16 +459,48 @@ const Register = () => {
               />
             </div>
             <div>
-              <Label htmlFor="tipo">Tipo de usuário</Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, tipo: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morador">Morador</SelectItem>
-                  <SelectItem value="prestador">Prestador de Serviços</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="tipos">Tipo de usuário</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="morador"
+                    checked={formData.tipos.includes("morador")}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ ...formData, tipos: [...formData.tipos, "morador"] });
+                      } else {
+                        setFormData({ ...formData, tipos: formData.tipos.filter(t => t !== "morador") });
+                      }
+                    }}
+                    className="rounded"
+                  />
+                  <Label htmlFor="morador" className="text-sm font-normal">
+                    Morador - Buscar e contratar serviços
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="prestador"
+                    checked={formData.tipos.includes("prestador")}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ ...formData, tipos: [...formData.tipos, "prestador"] });
+                      } else {
+                        setFormData({ ...formData, tipos: formData.tipos.filter(t => t !== "prestador") });
+                      }
+                    }}
+                    className="rounded"
+                  />
+                  <Label htmlFor="prestador" className="text-sm font-normal">
+                    Prestador - Oferecer serviços e gerenciar agenda
+                  </Label>
+                </div>
+                {formData.tipos.length === 0 && (
+                  <p className="text-sm text-red-600">Selecione pelo menos um tipo de usuário</p>
+                )}
+              </div>
             </div>
             <div>
               <Label htmlFor="password">Senha</Label>
@@ -566,16 +533,34 @@ const Register = () => {
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    toast({
-      title: "Se o email existir, enviaremos instruções",
-      description: "Verifique sua caixa de entrada",
-    });
-    navigate('/login');
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
+        email: email
+      });
+
+      toast({
+        title: "Se o email existir, enviaremos instruções",
+        description: "Verifique sua caixa de entrada",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao solicitar recuperação de senha:', error);
+      toast({
+        title: "Se o email existir, enviaremos instruções",
+        description: "Verifique sua caixa de entrada",
+      });
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -599,7 +584,126 @@ const ForgotPassword = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full">Enviar</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Enviando..." : "Enviar"}
+            </Button>
+            <Link to="/login" className="text-sm text-[#6366F1] hover:underline text-center">Voltar ao login</Link>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+};
+
+const ResetPassword = () => {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "As senhas não coincidem",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
+        token: token,
+        new_password: newPassword
+      });
+
+      toast({
+        title: "Senha redefinida com sucesso!",
+        description: "Agora você pode fazer login com sua nova senha",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao redefinir senha",
+        description: error.response?.data?.detail || "Token inválido ou expirado",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-indigo-900">Token inválido</CardTitle>
+            <CardDescription>O link de recuperação é inválido ou expirado</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Link to="/login" className="w-full text-center text-[#6366F1] hover:underline">
+              Voltar ao login
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-indigo-900">Redefinir senha</CardTitle>
+          <CardDescription>Digite sua nova senha</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">Nova senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirmar senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Redefinindo..." : "Redefinir senha"}
+            </Button>
             <Link to="/login" className="text-sm text-[#6366F1] hover:underline text-center">Voltar ao login</Link>
           </CardFooter>
         </form>
@@ -609,7 +713,7 @@ const ForgotPassword = () => {
 };
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const { tab } = useParams();
   const [services, setServices] = useState([]);
@@ -677,14 +781,16 @@ const Dashboard = () => {
 
   // Bottom navigation menu items
   const getMenuItems = () => {
-    if (user.tipo === 'morador') {
+    const currentType = user.tipo_ativo || user.tipo;
+    
+    if (currentType === 'morador') {
       return [
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'servicos', label: 'Serviços', icon: Users },
         { id: 'agendamentos', label: 'Meus Pedidos', icon: Calendar },
         { id: 'conta', label: 'Conta', icon: User }
       ];
-    } else if (user.tipo === 'prestador') {
+    } else if (currentType === 'prestador') {
       return [
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'meus-servicos', label: 'Serviços', icon: Settings },
@@ -703,10 +809,12 @@ const Dashboard = () => {
     const next = tab && allowed.has(tab) ? tab : 'inicio';
     setActiveTab(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, user.tipo]);
+  }, [tab, user.tipo_ativo, user.tipo]);
 
   const renderContent = () => {
-    if (user.tipo === 'admin') {
+    const currentType = user.tipo_ativo || user.tipo;
+    
+    if (currentType === 'admin') {
       return <AdminDashboard />;
     }
     switch (activeTab) {
@@ -1968,8 +2076,8 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     nome: user.nome || '',
     telefone: user.telefone,
     endereco: user.endereco,
-    bio: user.bio || '',
-    foto_url: user.foto_url || ''
+    foto_url: user.foto_url || '',
+    email: user.email || ''
   });
   const [settings, setSettings] = useState({
     geolocalizacao_ativa: user.geolocalizacao_ativa || false,
@@ -1990,8 +2098,12 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
 
   const handleProfileUpdate = async () => {
     try {
-      // Mock profile update
-      console.log('Perfil atualizado:', profile);
+      await axios.put(`${API}/profile`, {
+        nome: profile.nome,
+        telefone: profile.telefone,
+        endereco: profile.endereco,
+        foto_url: profile.foto_url,
+      });
       toast({
         title: "Perfil atualizado!",
         description: "Suas informações foram salvas com sucesso.",
@@ -2022,19 +2134,28 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
         return;
       }
 
-      // Mock save payment method
-      const paymentMethod = {
-        id: Date.now().toString(),
-        type: newPaymentMethod.type,
-        cardNumber: newPaymentMethod.cardNumber.replace(/\s/g, ''),
-        expiryDate: newPaymentMethod.expiryDate,
-        cardholderName: newPaymentMethod.cardholderName,
-        bankName: newPaymentMethod.bankName,
-        lastFour: newPaymentMethod.cardNumber.slice(-4),
+      const payload = {
+        tipo: 'cartao',
+        nome: newPaymentMethod.cardholderName,
+        dados: {
+          card_last_four: newPaymentMethod.cardNumber.slice(-4),
+          expiry: newPaymentMethod.expiryDate,
+          bank: newPaymentMethod.bankName
+        }
+      };
+      const res = await axios.post(`${API}/profile/payment-methods`, payload);
+      const pm = res.data.payment_method;
+      const mapped = {
+        id: pm.id,
+        type: 'card',
+        cardNumber: `**** **** **** ${pm.dados.card_last_four}`,
+        lastFour: pm.dados.card_last_four,
+        expiryDate: pm.dados.expiry,
+        cardholderName: payload.nome,
+        bankName: pm.dados.bank,
         isDefault: paymentMethods.length === 0
       };
-
-      setPaymentMethods(prev => [...prev, paymentMethod]);
+      setPaymentMethods(prev => [...prev, mapped]);
       setNewPaymentMethod({
         type: 'card',
         cardNumber: '',
@@ -2058,18 +2179,30 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     }
   };
 
-  const handleRemovePaymentMethod = (id) => {
-    setPaymentMethods(prev => prev.filter(method => method.id !== id));
-    toast({
-      title: "Forma de pagamento removida",
-      description: "A forma de pagamento foi removida com sucesso.",
-    });
+  const handleRemovePaymentMethod = async (id) => {
+    try {
+      await axios.delete(`${API}/profile/payment-methods/${id}`);
+      setPaymentMethods(prev => prev.filter(method => method.id !== id));
+      toast({
+        title: "Forma de pagamento removida",
+        description: "A forma de pagamento foi removida com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao remover',
+        description: error.response?.data?.detail || 'Tente novamente',
+      });
+    }
   };
 
   const handleSettingsUpdate = async () => {
     try {
-      // Mock settings update
-      console.log('Configurações atualizadas:', settings);
+      await axios.put(`${API}/settings`, {
+        geolocalizacao_ativa: settings.geolocalizacao_ativa,
+        notificacoes_ativadas: settings.notificacoes_ativadas,
+        privacidade_perfil: settings.privacidade_perfil,
+      });
       toast({
         title: "Configurações salvas!",
         description: "Suas preferências foram atualizadas.",
@@ -2169,6 +2302,10 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" value={profile.email} disabled />
+                </div>
+                <div>
                   <Label htmlFor="telefone">Telefone</Label>
                   <Input
                     id="telefone"
@@ -2182,15 +2319,6 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
                     id="endereco"
                     value={profile.endereco}
                     onChange={(e) => setProfile({ ...profile, endereco: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bio">Biografia</Label>
-                  <Textarea
-                    id="bio"
-                    value={profile.bio}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    placeholder="Conte um pouco sobre você..."
                   />
                 </div>
                 <Button onClick={handleProfileUpdate}>Salvar Alterações</Button>
@@ -2405,6 +2533,44 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Delete account */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Excluir conta</CardTitle>
+          <CardDescription>Excluir permanentemente sua conta (delete lógico)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive">Apagar minha conta</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tem certeza que deseja excluir de forma permanente a conta?</DialogTitle>
+                <DialogDescription>Essa ação desativará sua conta. Você poderá entrar em contato para reativação.</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline">Cancelar</Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await axios.delete(`${API}/account`);
+                      toast({ title: 'Conta excluída', description: 'Sua conta foi desativada.' });
+                      onLogout();
+                      navigate('/login');
+                    } catch (error) {
+                      toast({ variant: 'destructive', title: 'Erro ao excluir', description: error.response?.data?.detail || 'Tente novamente' });
+                    }
+                  }}
+                >
+                  Confirmar exclusão
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -2418,6 +2584,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/conta" element={<ProtectedRoute><ProfileContent user={{}} onUpdate={() => {}} onLogout={() => {}} /></ProtectedRoute>} />
             <Route path="/pagamento" element={<ProtectedRoute><EarningsPlaceholder /></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><SecurityPlaceholder /></ProtectedRoute>} />

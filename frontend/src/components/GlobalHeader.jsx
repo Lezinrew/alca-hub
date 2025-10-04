@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
-import { ArrowLeft, Home, Menu, User, LogOut } from 'lucide-react';
+import { ArrowLeft, Home, Menu, User, LogOut, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from './ui/sheet';
 import SideMenu from './SideMenu';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../hooks/use-toast';
+import axios from 'axios';
+import { API_URL } from '../lib/config';
 
 const GlobalHeader = ({ onMenuToggle, showMenuButton = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
+  const { toast } = useToast();
+  const [switchingMode, setSwitchingMode] = useState(false);
 
   // Função para obter o título da página baseado na rota
   const getPageTitle = (pathname) => {
@@ -84,6 +89,49 @@ const GlobalHeader = ({ onMenuToggle, showMenuButton = true }) => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleModeSwitch = async () => {
+    if (!user.tipos || user.tipos.length <= 1) return;
+    
+    const currentMode = user.tipo_ativo;
+    const newMode = currentMode === 'morador' ? 'prestador' : 'morador';
+    
+    setSwitchingMode(true);
+    
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/auth/switch-mode`,
+        { tipo_ativo: newMode },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      if (response.data) {
+        // Atualizar dados do usuário no localStorage
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+        toast({
+          title: "Modo alterado!",
+          description: `Agora você está no modo ${newMode === 'morador' ? 'Morador' : 'Prestador'}`,
+        });
+        
+        // Atualizar o usuário no contexto
+        setUser(response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao alterar modo:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar modo",
+        description: error.response?.data?.detail || "Tente novamente",
+      });
+    } finally {
+      setSwitchingMode(false);
+    }
   };
 
   const breadcrumbs = getBreadcrumb();
@@ -197,9 +245,29 @@ const GlobalHeader = ({ onMenuToggle, showMenuButton = true }) => {
               <div className="flex items-center space-x-3">
                 <div className="hidden sm:block text-right">
                   <p className="text-xs text-gray-500 capitalize">
-                    {user.tipo}
+                    {user.tipo_ativo || user.tipo}
                   </p>
                 </div>
+
+                {/* Botão de alternância de modo */}
+                {user.tipos && user.tipos.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleModeSwitch}
+                    disabled={switchingMode}
+                    className="p-2 hover:bg-gray-100 text-blue-600 hover:text-blue-700"
+                    title={`Alternar para modo ${user.tipo_ativo === 'morador' ? 'Prestador' : 'Morador'}`}
+                  >
+                    {switchingMode ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    ) : user.tipo_ativo === 'morador' ? (
+                      <ToggleRight className="h-4 w-4" />
+                    ) : (
+                      <ToggleLeft className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
                 
                 <Button
                   variant="ghost"

@@ -24,56 +24,99 @@ export const AuthProvider = ({ children }) => {
     
     if (token && userData) {
       setUser(JSON.parse(userData));
-      // Não configurar header de autorização para evitar chamadas de API
+      // Configurar header de autorização para futuras requisições
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      // Mock login - simular autenticação
-      const mockUser = {
-        id: 1,
-        nome: "LEANDRO XAVIER DE PINHO",
-        email: email,
-        tipo: "morador",
-        cpf: "123.456.789-00",
-        telefone: "(11) 99999-9999"
-      };
+      console.log('🔍 AuthContext: Tentando login com:', { email, password });
+      console.log('🔍 AuthContext: URL da API:', `${API}/auth/login`);
       
-      const mockToken = "mock_token_" + Date.now();
+      const response = await axios.post(`${API}/auth/login`, {
+        email,
+        password
+      });
       
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      
-      return { success: true };
+      console.log('✅ AuthContext: Resposta do servidor:', response.data);
+
+      if (response.data.access_token) {
+        const { access_token, user } = response.data;
+        
+        localStorage.setItem('token', access_token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // Configurar header de autorização para futuras requisições
+        axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        
+        setUser(user);
+        return { success: true };
+      } else {
+        return { success: false, error: 'Resposta inválida do servidor' };
+      }
     } catch (error) {
-      return { success: false, error: 'Erro ao fazer login' };
+      console.error('❌ AuthContext: Erro no login:', error);
+      console.error('❌ AuthContext: Error response:', error.response);
+      console.error('❌ AuthContext: Error message:', error.message);
+      
+      if (error.response?.data?.detail) {
+        console.log('❌ AuthContext: Erro específico do servidor:', error.response.data.detail);
+        return { success: false, error: error.response.data.detail };
+      } else if (error.response?.status === 401) {
+        console.log('❌ AuthContext: Erro 401 - Credenciais inválidas');
+        return { success: false, error: 'E-mail ou senha incorretos' };
+      } else if (error.response?.status === 422) {
+        console.log('❌ AuthContext: Erro 422 - Dados inválidos');
+        return { success: false, error: 'Dados inválidos. Verifique o formato do e-mail.' };
+      } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+        console.log('❌ AuthContext: Erro de rede');
+        return { success: false, error: 'Erro de conexão. Verifique se o backend está rodando.' };
+      } else {
+        console.log('❌ AuthContext: Erro genérico');
+        return { success: false, error: 'Erro de conexão. Tente novamente.' };
+      }
     }
   };
 
   const register = async (userData) => {
     try {
-      // Mock register - simular cadastro
-      const mockUser = {
-        id: Date.now(),
-        nome: userData.nome,
-        email: userData.email,
-        tipo: userData.tipo || "morador",
-        cpf: userData.cpf,
-        telefone: userData.telefone
-      };
+      console.log('🔍 AuthContext: Tentando registro com:', userData);
+      console.log('🔍 AuthContext: URL da API:', `${API}/auth/register`);
       
-      const mockToken = "mock_token_" + Date.now();
+      const response = await axios.post(`${API}/auth/register`, userData);
       
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      
-      return { success: true };
+      console.log('✅ AuthContext: Resposta do servidor:', response.data);
+
+      if (response.data.user) {
+        const { user } = response.data;
+        
+        // Para registro, não temos token ainda, então não salvamos no localStorage
+        // O usuário precisará fazer login após o registro
+        setUser(user);
+        return { success: true, user: user };
+      } else {
+        return { success: false, error: 'Resposta inválida do servidor' };
+      }
     } catch (error) {
-      return { success: false, error: 'Erro ao fazer cadastro' };
+      console.error('❌ AuthContext: Erro no registro:', error);
+      console.error('❌ AuthContext: Error response:', error.response);
+      console.error('❌ AuthContext: Error message:', error.message);
+      
+      if (error.response?.data?.detail) {
+        console.log('❌ AuthContext: Erro específico do servidor:', error.response.data.detail);
+        return { success: false, error: error.response.data.detail };
+      } else if (error.response?.status === 400) {
+        console.log('❌ AuthContext: Erro 400 - Dados inválidos');
+        return { success: false, error: 'Dados inválidos. Verifique os campos preenchidos.' };
+      } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+        console.log('❌ AuthContext: Erro de rede');
+        return { success: false, error: 'Erro de conexão. Verifique se o backend está rodando.' };
+      } else {
+        console.log('❌ AuthContext: Erro genérico');
+        return { success: false, error: 'Erro de conexão. Tente novamente.' };
+      }
     }
   };
 
@@ -86,6 +129,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     login,
     register,
     logout,
