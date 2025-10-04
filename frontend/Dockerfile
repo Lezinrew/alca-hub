@@ -1,6 +1,6 @@
 # Dockerfile para Frontend (React) - Alça Hub
 # Estágio 1: Build da aplicação
-FROM node:16-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Definir diretório de trabalho
 WORKDIR /app
