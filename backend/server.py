@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, BackgroundTasks
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,6 +20,7 @@ import hashlib
 import json
 import csv
 import io
+import math
 
 
 ROOT_DIR = Path(__file__).parent
@@ -42,7 +43,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # pwd_context removido - usando o do token_manager.py
+# Suporte a OAuth2 com fluxo de senha (token JWT)
 security = HTTPBearer()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 # Mercado Pago configuration
 MERCADO_PAGO_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
@@ -142,6 +145,9 @@ class UserCreate(BaseModel):
     foto_url: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    # AHSW-30: Termos de uso devem ser aceitos para concluir cadastro
+    aceitou_termos: bool = False
+    data_aceite_termos: Optional[datetime] = None
 
 class UserProfileUpdate(BaseModel):
     nome: Optional[str] = None
@@ -476,14 +482,14 @@ async def soft_delete_user(user_id: str, database) -> Dict[str, Any]:
 def check_user_permissions(user: Dict[str, Any], required_permission: str) -> bool:
     return validate_user_permissions(user, required_permission)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -494,6 +500,110 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if user is None:
         raise credentials_exception
     return User(**user)
+
+@api_router.post("/auth/token")
+async def oauth2_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Endpoint compatível com OAuth2 Password Flow para emitir JWT.
+    Aceita username (email) e password via form-data.
+    """
+    email_lower = form_data.username.lower()
+    user_doc = await db.users.find_one({"email": email_lower, "ativo": True})
+    if not user_doc or not verify_password(form_data.password or "", user_doc.get("senha", "")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = User(**user_doc)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# ------------------------------
+# Providers Nearby (AHSW-21)
+# ------------------------------
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calcula distância entre 2 pontos (km)."""
+    R = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+@api_router.get("/providers/nearby")
+async def get_providers_nearby(
+    latitude: float,
+    longitude: float,
+    radius_km: float = 10.0,
+    categoria: Optional[str] = None,
+    limit: int = 50
+):
+    """
+    Retorna prestadores próximos ao ponto informado com seus serviços.
+    - Filtra por raio (Haversine em memória)
+    - Se categoria for informada, filtra serviços por categoria
+    """
+    # Buscar prestadores com coordenadas
+    raw_users = await db.users.find({
+        "tipo": UserType.PRESTADOR,
+        "ativo": True,
+        "latitude": {"$ne": None},
+        "longitude": {"$ne": None}
+    }).to_list(length=1000)
+
+    providers: List[Dict[str, Any]] = []
+
+    # Pré-carregar serviços por prestador
+    services_by_prestador: Dict[str, List[Dict[str, Any]]] = {}
+    all_services = await db.services.find({"status": ServiceStatus.DISPONIVEL}).to_list(length=2000)
+    for svc in all_services:
+        pid = svc.get("prestador_id")
+        if pid:
+            services_by_prestador.setdefault(pid, []).append(svc)
+
+    for u in raw_users:
+        lat = float(u.get("latitude"))
+        lng = float(u.get("longitude"))
+        dist = _haversine_km(latitude, longitude, lat, lng)
+        if dist <= radius_km:
+            svc_list = services_by_prestador.get(u.get("id"), [])
+            if categoria:
+                svc_list = [s for s in svc_list if (s.get("categoria") or "").lower() == categoria.lower()]
+                if not svc_list:
+                    continue
+            # Mapear serviços para formato simples
+            mapped_services = []
+            for s in svc_list:
+                mapped_services.append({
+                    "id": s["id"],
+                    "nome": s.get("nome") or s.get("categoria") or "Serviço",
+                    "categoria": s.get("categoria") or "outros",
+                    "preco_por_hora": float(s.get("preco_por_hora", 0)),
+                    "media_avaliacoes": float(s.get("media_avaliacoes", 0)),
+                    "total_avaliacoes": int(s.get("total_avaliacoes", 0))
+                })
+
+            providers.append({
+                "provider_id": u.get("id") or str(u.get("_id")),
+                "nome": u.get("nome") or "Prestador",
+                "latitude": lat,
+                "longitude": lng,
+                "distance_km": round(dist, 2),
+                "estimated_time_min": max(5, int(dist / 0.5 * 10)),  # heurística simples
+                "rating": float(u.get("rating", 0)) or 0,
+                "services": mapped_services
+            })
+
+    # Ordenar por distância e limitar
+    providers.sort(key=lambda p: p["distance_km"])
+    return {"providers": providers[:limit]}
 
 def get_mercado_pago_sdk():
     """Get configured Mercado Pago SDK instance"""
@@ -567,6 +677,13 @@ async def register_user(user_data: UserCreate):
             detail="CPF já cadastrado"
         )
     
+    # AHSW-30: Validar aceite de termos de uso
+    if not user_data.aceitou_termos:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="É obrigatório aceitar os Termos de Uso para criar a conta"
+        )
+
     # Create user
     raw_password = user_data.password or user_data.senha or "senha123456"
     hashed_password = get_password_hash(raw_password)
@@ -586,9 +703,15 @@ async def register_user(user_data: UserCreate):
     # Compatibilidade: se tipo único informado, refletir em tipos
     if user_dict.get("tipo") and not user_dict.get("tipos"):
         user_dict["tipos"] = [user_dict["tipo"]]
+    # Persistir metadados do aceite
+    if not user_dict.get("data_aceite_termos"):
+        user_dict["data_aceite_termos"] = datetime.utcnow()
+
     user = User(**{k: v for k, v in user_dict.items() if k != "tipo"})
     user_doc = user.dict()
     user_doc["password"] = hashed_password
+    user_doc["aceitou_termos"] = True
+    user_doc["data_aceite_termos"] = user_dict["data_aceite_termos"]
     
     await db_to_use.users.insert_one(user_doc)
     
@@ -613,9 +736,32 @@ async def login_user(user_credentials: UserLogin):
             db_to_use = AsyncMock()
             db_to_use.users = AsyncMock()
             db_to_use.users.find_one = AsyncMock(return_value=None)
-    user_doc = await db_to_use.users.find_one({"email": user_credentials.email})
+    # AHSW-14: Limite de tentativas de login (5 tentativas -> bloqueio 5 min)
+    now = datetime.utcnow()
+    email_lower = str(user_credentials.email).lower()
+    attempts = await db_to_use.login_attempts.find_one({"email": email_lower})
+    if attempts and attempts.get("blocked_until") and attempts["blocked_until"] > now:
+        remaining = int((attempts["blocked_until"] - now).total_seconds())
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Limite máximo de tentativas atingido!",
+            headers={"Retry-After": str(max(1, remaining))}
+        )
+
+    user_doc = await db_to_use.users.find_one({"email": email_lower})
     raw_password = user_credentials.password or user_credentials.senha or ""
     if not user_doc or not verify_password(raw_password, user_doc.get("senha", "")):
+        # Atualizar tentativas
+        window_start = attempts.get("window_start") if attempts else None
+        if not window_start or (now - window_start).total_seconds() > 300:  # 5 minutos
+            attempts_count = 1
+            window_start = now
+        else:
+            attempts_count = (attempts.get("attempts_count", 0) if attempts else 0) + 1
+        update = {"$set": {"attempts_count": attempts_count, "window_start": window_start, "last_failed_at": now}}
+        if attempts_count >= 5:
+            update["$set"]["blocked_until"] = now + timedelta(minutes=5)
+        await db_to_use.login_attempts.update_one({"email": email_lower}, update, upsert=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
@@ -627,6 +773,8 @@ async def login_user(user_credentials: UserLogin):
     access_token = create_access_token(
         data={"sub": user.id}, expires_delta=access_token_expires
     )
+    # Sucesso: resetar contador de tentativas
+    await db_to_use.login_attempts.delete_one({"email": email_lower})
     
     return {"access_token": access_token, "token_type": "bearer", "user": user.dict()}
 
@@ -646,19 +794,69 @@ class ResetPasswordRequest(BaseModel):
 async def forgot_password(request: ForgotPasswordRequest):
     """Enviar email de recuperação de senha"""
     try:
+        now = datetime.utcnow()
+        email_lower = request.email.lower()
+
+        # RN006: Verificar bloqueio temporário por excesso de tentativas
+        attempts = await db.password_reset_attempts.find_one({"email": email_lower})
+        if attempts and attempts.get("blocked_until") and attempts["blocked_until"] > now:
+            remaining = int((attempts["blocked_until"] - now).total_seconds())
+            return {
+                "message": "Você pode realizar uma nova tentativa de recuperação de senha após 15 minutos",
+                "blocked": True,
+                "seconds_remaining": remaining
+            }
+
+        # RN001: Cooldown de 60 segundos entre envios
+        if attempts and attempts.get("last_sent_at"):
+            delta = (now - attempts["last_sent_at"]).total_seconds()
+            if delta < 60:
+                return {
+                    "message": "Você acabou de solicitar um código. Por favor, aguarde 60 segundos antes de tentar novamente!",
+                    "cooldown": True,
+                    "seconds_remaining": int(60 - delta)
+                }
+
         # Buscar usuário pelo email
-        user = await db.users.find_one({"email": request.email, "ativo": True})
+        user = await db.users.find_one({"email": email_lower, "ativo": True})
         
         if not user:
             # Por segurança, não revelar se o email existe ou não
+            # Ainda assim, atualizar contador/cooldown de forma idempotente
+            if attempts is None:
+                await db.password_reset_attempts.insert_one({
+                    "email": email_lower,
+                    "attempts_count": 1,
+                    "window_start": now,
+                    "last_sent_at": now
+                })
+            else:
+                # Resetar janela após 15 minutos
+                window_start = attempts.get("window_start", now)
+                if (now - window_start).total_seconds() > 900:
+                    attempts_count = 0
+                    window_start = now
+                else:
+                    attempts_count = attempts.get("attempts_count", 0)
+                attempts_count += 1
+                update = {"$set": {"attempts_count": attempts_count, "window_start": window_start, "last_sent_at": now}}
+                # Bloquear após 5 tentativas na janela
+                if attempts_count >= 5:
+                    update["$set"]["blocked_until"] = now + timedelta(minutes=15)
+                await db.password_reset_attempts.update_one({"email": email_lower}, update, upsert=True)
+
             return {"message": "Se o email existir, enviaremos instruções. Verifique sua caixa de entrada."}
         
         # Gerar token de recuperação (simples para demo)
         import secrets
-        reset_token = secrets.token_urlsafe(32)
+        # RN005: Garantir unicidade do código
+        for _ in range(5):
+            reset_token = secrets.token_urlsafe(32)
+            existing = await db.password_reset_tokens.find_one({"token": reset_token})
+            if not existing:
+                break
         
         # Armazenar token no banco (com expiração de 1 hora)
-        from datetime import datetime, timedelta
         reset_data = {
             "user_id": user["_id"],
             "token": reset_token,
@@ -668,13 +866,34 @@ async def forgot_password(request: ForgotPasswordRequest):
         }
         
         await db.password_reset_tokens.insert_one(reset_data)
+
+        # Atualizar tentativas/cooldown (RN001, RN006)
+        if attempts is None:
+            await db.password_reset_attempts.insert_one({
+                "email": email_lower,
+                "attempts_count": 1,
+                "window_start": now,
+                "last_sent_at": now
+            })
+        else:
+            window_start = attempts.get("window_start", now)
+            if (now - window_start).total_seconds() > 900:
+                attempts_count = 0
+                window_start = now
+            else:
+                attempts_count = attempts.get("attempts_count", 0)
+            attempts_count += 1
+            update = {"$set": {"attempts_count": attempts_count, "window_start": window_start, "last_sent_at": now}}
+            if attempts_count >= 5:
+                update["$set"]["blocked_until"] = now + timedelta(minutes=15)
+            await db.password_reset_attempts.update_one({"email": email_lower}, update, upsert=True)
         
         # Em produção, aqui você enviaria um email real
         # Para demo, vamos apenas logar o token
         print(f"🔑 Token de recuperação para {request.email}: {reset_token}")
         print(f"🔗 Link de recuperação: http://localhost:5173/reset-password?token={reset_token}")
         
-        return {"message": "Se o email existir, enviaremos instruções. Verifique sua caixa de entrada."}
+        return {"message": "Se o email existir, enviaremos instruções. Verifique sua caixa de entrada.", "cooldown": True, "seconds_remaining": 60}
         
     except Exception as e:
         print(f"Erro no forgot password: {str(e)}")
@@ -919,6 +1138,35 @@ async def get_earnings_summary(current_user: User = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Erro ao buscar faturamento: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro ao buscar faturamento")
+
+# ------------------------------
+# Profile: Update Location (AHSW-21)
+# ------------------------------
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+
+@api_router.put("/profile/location")
+async def update_profile_location(
+    body: LocationUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Atualiza latitude/longitude do usuário autenticado (prestador ou morador).
+    Regras: latitude [-90, 90], longitude [-180, 180].
+    """
+    lat = body.latitude
+    lng = body.longitude
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        raise HTTPException(status_code=400, detail="Coordenadas inválidas")
+    try:
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"latitude": lat, "longitude": lng, "updated_at": datetime.utcnow()}}
+        )
+        return {"message": "Localização atualizada com sucesso", "latitude": lat, "longitude": lng}
+    except Exception as e:
+        logger.error(f"Erro ao atualizar localização: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar localização")
 
 # Service routes
 @api_router.post("/services", response_model=Service)
