@@ -143,12 +143,15 @@ class TestUserRetrieval:
         ]
         
         # Mock do banco de dados
-        mock_database.users.find.return_value.to_list.return_value = users_data
+        mock_cursor = AsyncMock()
+        mock_cursor.to_list.return_value = users_data
+        mock_database.users.find.return_value = mock_cursor
         mock_database.users.count_documents.return_value = 2
         
         # Simular listagem de usuários
         from server import get_users_list
-        result = await get_users_list(skip=0, limit=10, mock_database)
+        # Corrigir ordem de argumentos para evitar erro de sintaxe
+        result = await get_users_list(0, 10, mock_database)
         
         # Verificar resultado
         assert result is not None

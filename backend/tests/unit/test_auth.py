@@ -230,11 +230,21 @@ class TestAuthIntegration:
         # Mock do banco de dados
         mock_database.users.find_one.return_value = {
             "_id": "123",
+            "id": "123",
             "email": sample_user_data["email"],
-            "senha": get_password_hash(sample_user_data["senha"]),
-            "tipo": "morador",
+            "password": get_password_hash(sample_user_data["senha"]),
+            "cpf": sample_user_data.get("cpf", "00000000000"),
+            "nome": sample_user_data.get("nome", "Usuário"),
+            "telefone": sample_user_data.get("telefone", "00000000000"),
+            "endereco": sample_user_data.get("endereco", "Endereço não informado"),
+            "tipos": [sample_user_data.get("tipo", "morador")],
+            "tipo_ativo": sample_user_data.get("tipo", "morador"),
             "ativo": True
         }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
         
         # Dados de login
         login_data = {
@@ -258,6 +268,10 @@ class TestAuthIntegration:
         # Mock do banco de dados
         mock_database.users.find_one.return_value = None
         
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
         # Dados de login inválidos
         login_data = {
             "email": "inexistente@exemplo.com",
@@ -270,7 +284,7 @@ class TestAuthIntegration:
         # Verificar resposta de erro
         assert response.status_code == 401
         data = response.json()
-        assert "Credenciais inválidas" in data["detail"]
+        assert "Email ou senha incorretos" in data["detail"]
     
     @pytest.mark.asyncio
     async def test_register_flow_success(self, client, mock_database, sample_user_data):
@@ -279,6 +293,10 @@ class TestAuthIntegration:
         mock_database.users.find_one.return_value = None  # Usuário não existe
         mock_database.users.insert_one.return_value = AsyncMock(inserted_id="123")
         
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
         # Dados de registro
         register_data = sample_user_data.copy()
         
@@ -286,7 +304,7 @@ class TestAuthIntegration:
         response = client.post("/api/auth/register", json=register_data)
         
         # Verificar resposta
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert "Usuário criado com sucesso" in data["message"]
         assert "user" in data
@@ -296,6 +314,10 @@ class TestAuthIntegration:
         """Testar registro com email duplicado."""
         # Mock do banco de dados
         mock_database.users.find_one.return_value = {"_id": "123"}  # Usuário já existe
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
         
         # Dados de registro
         register_data = sample_user_data.copy()

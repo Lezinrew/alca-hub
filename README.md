@@ -2,11 +2,12 @@
 
 Sistema completo de gestão de serviços para condomínios, conectando moradores e prestadores de serviços através de uma plataforma moderna e intuitiva.
 
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.0-purple.svg)](https://vitejs.dev/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.1-purple.svg)](https://vitejs.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green.svg)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green.svg)](https://mongodb.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3-blue.svg)](https://tailwindcss.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-blue.svg)](https://tailwindcss.com/)
+[![Capacitor](https://img.shields.io/badge/Capacitor-7.4-orange.svg)](https://capacitorjs.com/)
 
 ## 📋 Visão Geral
 

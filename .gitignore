@@ -77,5 +77,31 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ frontend/node_modules/.cache/default-development/0.pack
+android-sdk/ 
 frontend/node_modules/.cache/default-development/0.pack
+
+# Debug and test files
+debug_*.py
+test_*.py
+test_*.html
+test_*.js
+test_*.md
+*.log
+*.coverage
+restart_*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
