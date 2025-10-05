@@ -352,9 +352,11 @@ const Register = () => {
     nome: "",
     telefone: "",
     endereco: "",
-    tipos: ["morador"] // Array de tipos selecionados
+    tipos: ["morador"], // Array de tipos selecionados
+    aceitou_termos: false
   });
   const [loading, setLoading] = useState(false);
+  const [openTerms, setOpenTerms] = useState(false);
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -371,6 +373,24 @@ const Register = () => {
         variant: "destructive",
         title: "Erro no cadastro",
         description: "Selecione pelo menos um tipo de usuário",
+      });
+      return;
+    }
+    if (!formData.aceitou_termos) {
+      toast({
+        variant: "destructive",
+        title: "Termos obrigatórios",
+        description: "Você precisa aceitar os Termos de Uso para criar a conta.",
+      });
+      return;
+    }
+    // AHSW-19: Validação de senha forte (mín. 8 chars, número e símbolo)
+    const strongPwd = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!strongPwd.test(formData.password)) {
+      toast({
+        variant: "destructive",
+        title: "Senha fraca",
+        description: "A senha deve ter no mínimo 8 caracteres, incluir ao menos 1 número e 1 símbolo.",
       });
       return;
     }
@@ -513,6 +533,20 @@ const Register = () => {
                 required
               />
             </div>
+            <div className="border-t pt-2">
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="aceitou_termos"
+                  checked={formData.aceitou_termos}
+                  onChange={(e) => setFormData({ ...formData, aceitou_termos: e.target.checked })}
+                  className="mt-1 rounded"
+                />
+                <Label htmlFor="aceitou_termos" className="text-sm font-normal">
+                  Eu li e aceito os <button type="button" className="text-indigo-600 hover:underline" onClick={() => setOpenTerms(true)}>Termos de Uso</button>.
+                </Label>
+              </div>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
@@ -612,6 +646,17 @@ const ResetPassword = () => {
         variant: "destructive",
         title: "Erro",
         description: "As senhas não coincidem",
+      });
+      return;
+    }
+
+    // AHSW-19: Validação de senha forte (mín. 8 chars, número e símbolo)
+    const strongPwd = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!strongPwd.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Senha fraca",
+        description: "A senha deve ter no mínimo 8 caracteres, incluir ao menos 1 número e 1 símbolo.",
       });
       return;
     }
@@ -2220,7 +2265,7 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Minha Conta</h2>
-        <Button variant="outline" onClick={onLogout}>
+        <Button variant="destructive" size="sm" onClick={onLogout}>
           <LogOut className="h-4 w-4 mr-2" />
           Sair
         </Button>
