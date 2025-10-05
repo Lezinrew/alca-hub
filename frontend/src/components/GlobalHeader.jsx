@@ -279,12 +279,13 @@ const GlobalHeader = ({ onMenuToggle, showMenuButton = true }) => {
                 </Button>
 
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
                   onClick={handleLogout}
-                  className="p-2 hover:bg-gray-100 text-red-600 hover:text-red-700"
+                  className="px-3"
                 >
-                  <LogOut className="h-5 w-5" />
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
                 </Button>
               </div>
             )}
