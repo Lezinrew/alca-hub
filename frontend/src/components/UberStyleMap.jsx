@@ -104,6 +104,8 @@ const UberStyleMap = ({ user }) => {
     radius: 10
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
   const mapRef = useRef();
   const { toast } = useToast();
 
@@ -151,17 +153,20 @@ const UberStyleMap = ({ user }) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        latitude: lat,
-        longitude: lng,
-        radius_km: filters.radius
+        latitude: String(lat),
+        longitude: String(lng),
+        radius_km: String(filters.radius)
       });
-      
-      if (filters.categoria) {
-        params.append('categoria', filters.categoria);
-      }
+      if (filters.categoria) params.append('categoria', filters.categoria);
 
-      // Mock providers data
-      setProviders([]);
+      const apiBase = import.meta.env.VITE_API_URL || (window.location.port === '3000' ? 'http://localhost:8000' : '');
+      const resp = await fetch(`${apiBase}/api/providers/nearby?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!resp.ok) throw new Error('Falha ao buscar prestadores');
+      const data = await resp.json();
+      const list = Array.isArray(data.providers) ? data.providers : [];
+      setProviders(list);
     } catch (error) {
       console.error('Error loading providers:', error);
       toast({
@@ -171,6 +176,56 @@ const UberStyleMap = ({ user }) => {
       });
     }
     setLoading(false);
+  };
+
+  // AHSW-21: Geocodificação por endereço (Nominatim / OpenStreetMap)
+  const geocodeAddress = async () => {
+    if (!address || address.trim().length < 3) {
+      toast({
+        variant: "destructive",
+        title: "Endereço inválido",
+        description: "Informe um endereço com pelo menos 3 caracteres.",
+      });
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const q = encodeURIComponent(address.trim());
+      const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`;
+      const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = await resp.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Endereço não encontrado",
+          description: "Tente ser mais específico ou use um ponto de referência.",
+        });
+        setGeocoding(false);
+        return;
+      }
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      const newLoc = { lat, lng };
+      setUserLocation(newLoc);
+      if (mapRef.current) {
+        const map = mapRef.current;
+        if (map && map.setView) {
+          map.setView([lat, lng], 14);
+        } else if (map._leaflet_id && map._map) {
+          // compatibility when ref points to internal object
+          map._map.setView([lat, lng], 14);
+        }
+      }
+      await loadNearbyProviders(lat, lng);
+    } catch (error) {
+      console.error('Erro ao geocodificar:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar endereço",
+        description: "Verifique sua conexão e tente novamente.",
+      });
+    }
+    setGeocoding(false);
   };
 
   const handleFilterChange = () => {
@@ -311,15 +366,33 @@ const UberStyleMap = ({ user }) => {
             <h1 className="text-xl font-bold">🗺️ Encontrar Serviços</h1>
             <p className="text-sm text-gray-300">{providers.length} prestadores próximos</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Filtros
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Busca por endereço */}
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Digite um endereço para centralizar"
+              className="w-64 bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={geocodeAddress}
+              disabled={geocoding}
+              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+            >
+              {geocoding ? 'Buscando...' : 'Centralizar'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              Filtros
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
