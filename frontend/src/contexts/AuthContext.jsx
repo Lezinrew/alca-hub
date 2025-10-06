@@ -17,6 +17,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [needsProfileSelection, setNeedsProfileSelection] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -52,6 +53,13 @@ export const AuthProvider = ({ children }) => {
         axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
         
         setUser(user);
+        
+        // Verificar se o usuário tem múltiplos tipos e precisa selecionar perfil
+        if (user.tipos && user.tipos.length > 1) {
+          setNeedsProfileSelection(true);
+          return { success: true, needsProfileSelection: true };
+        }
+        
         return { success: true };
       } else {
         return { success: false, error: 'Resposta inválida do servidor' };
@@ -120,11 +128,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const finishProfileSelection = (selectedUser) => {
+    setUser(selectedUser);
+    setNeedsProfileSelection(false);
+  };
+
   const logout = () => {
+    console.log('🔍 AuthContext: Função logout chamada');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    setNeedsProfileSelection(false);
+    console.log('✅ AuthContext: Logout realizado com sucesso');
   };
 
   const value = {
@@ -133,7 +149,9 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    loading
+    loading,
+    needsProfileSelection,
+    finishProfileSelection
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

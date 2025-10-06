@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -18,7 +18,7 @@ import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { SERVICE_CATEGORIES_DATA } from "./components/ServiceCategories";
-import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map } from "lucide-react";
+import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map, MessageCircle } from "lucide-react";
 import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
@@ -28,6 +28,13 @@ import MobileBookingFlow from "./components/MobileBookingFlow";
 import ProfessionalAgenda from "./components/ProfessionalAgenda";
 import BookingFlow from "./components/BookingFlow";
 import PricingDisplay from "./components/PricingDisplay";
+import ChatSystem from "./components/ChatSystem";
+import BookingManagement from "./components/BookingManagement";
+import UserLocationManager from "./components/UserLocationManager";
+import ProfileSelector from "./components/ProfileSelector";
+import PaymentSystem from "./components/PaymentSystem";
+import PaymentMethods from "./components/PaymentMethods";
+import PaymentHistory from "./components/PaymentHistory";
 import LoginForm from "./components/LoginForm";
 import ModeSwitcher from "./components/ModeSwitcher";
 import AvailabilityCalendar from "./components/AvailabilityCalendar";
@@ -247,11 +254,105 @@ const ProtectedRoute = ({ children, allowedTypes = [] }) => {
 const ProfileContentWrapper = () => {
   const { user, logout } = useAuth();
   
+  console.log('🔍 ProfileContentWrapper: user:', user);
+  console.log('🔍 ProfileContentWrapper: logout function:', logout);
+  
   const handleUpdate = () => {
     // Handle profile update
   };
 
   return <ProfileContent user={user} onUpdate={handleUpdate} onLogout={logout} />;
+};
+
+// Payment Methods Wrapper
+const PaymentMethodsWrapper = () => {
+  const { user } = useAuth();
+  
+  const handleUpdate = () => {
+    // Handle payment methods update
+  };
+
+  return <PaymentMethods user={user} onUpdate={handleUpdate} />;
+};
+
+// Payment History Wrapper
+const PaymentHistoryWrapper = () => {
+  const { user } = useAuth();
+
+  return <PaymentHistory user={user} />;
+};
+
+// Payment Process Wrapper
+const PaymentProcessWrapper = () => {
+  const { bookingId } = useParams();
+  const navigate = useNavigate();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simular busca do agendamento
+    const fetchBooking = async () => {
+      try {
+        setLoading(true);
+        // Aqui você faria uma chamada real para a API
+        // const response = await axios.get(`${API_URL}/api/bookings/${bookingId}`);
+        // setBooking(response.data);
+        
+        // Mock data para demonstração
+        setBooking({
+          id: bookingId,
+          preco_total: 150.00,
+          servico: "Reparo Elétrico",
+          prestador: "João Silva",
+          data: "2024-01-15",
+          horario: "14:00"
+        });
+      } catch (error) {
+        console.error('Erro ao buscar agendamento:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooking();
+  }, [bookingId]);
+
+  const handlePaymentSuccess = (paymentData) => {
+    console.log('Pagamento aprovado:', paymentData);
+    navigate('/dashboard/agendamentos');
+  };
+
+  const handlePaymentCancel = () => {
+    navigate('/dashboard/agendamentos');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <div className="text-center py-8">
+        <h2 className="text-2xl font-bold mb-4">Agendamento não encontrado</h2>
+        <p className="text-gray-600 mb-4">O agendamento solicitado não foi encontrado.</p>
+        <Button onClick={() => navigate('/dashboard/agendamentos')}>
+          Voltar aos Agendamentos
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <PaymentSystem 
+      booking={booking}
+      onPaymentSuccess={handlePaymentSuccess}
+      onPaymentCancel={handlePaymentCancel}
+    />
+  );
 };
 
 
@@ -766,6 +867,8 @@ const Dashboard = () => {
   const [myServices, setMyServices] = useState([]);
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('inicio');
+  const [showChat, setShowChat] = useState(false);
+  const [showLocationManager, setShowLocationManager] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -833,6 +936,9 @@ const Dashboard = () => {
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'servicos', label: 'Serviços', icon: Users },
         { id: 'agendamentos', label: 'Meus Pedidos', icon: Calendar },
+        { id: 'chat', label: 'Chat', icon: MessageCircle },
+        { id: 'localizacao', label: 'Localização', icon: MapPin },
+        { id: 'pagamento', label: 'Pagamentos', icon: CreditCard },
         { id: 'conta', label: 'Conta', icon: User }
       ];
     } else if (currentType === 'prestador') {
@@ -840,6 +946,8 @@ const Dashboard = () => {
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'meus-servicos', label: 'Serviços', icon: Settings },
         { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+        { id: 'chat', label: 'Chat', icon: MessageCircle },
+        { id: 'localizacao', label: 'Localização', icon: MapPin },
         { id: 'faturamento', label: 'Faturamento', icon: CreditCard },
         { id: 'conta', label: 'Conta', icon: User }
       ];
@@ -870,7 +978,17 @@ const Dashboard = () => {
       case 'meus-servicos':
         return <MyServicesContent services={myServices} onUpdate={loadData} />;
       case 'agendamentos':
-        return <BookingsContent bookings={bookings} onUpdate={loadData} />;
+        return <BookingManagement user={user} />;
+      case 'chat':
+        return <ChatSystem user={user} onClose={() => setActiveTab('inicio')} />;
+      case 'localizacao':
+        return <UserLocationManager user={user} onLocationUpdate={(location) => {
+          // Update user location in context
+          const updatedUser = { ...user, ...location };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }} />;
+      case 'pagamento':
+        return <PaymentMethods user={user} onUpdate={loadData} />;
       case 'faturamento':
         return <EarningsContent user={user} />;
       case 'conta':
@@ -2115,15 +2233,175 @@ const EarningsContent = ({ user }) => {
 };
 
 const ProfileContent = ({ user, onUpdate, onLogout }) => {
+  console.log('🔍 ProfileContent: Props recebidas:', { user, onUpdate, onLogout });
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('dados');
   const [profile, setProfile] = useState({
     nome: user.nome || '',
-    telefone: user.telefone,
-    endereco: user.endereco,
+    telefone: user.telefone || '',
+    endereco: user.endereco || '',
     foto_url: user.foto_url || '',
     email: user.email || ''
   });
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Função para upload de foto
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Por favor, selecione uma imagem válida (JPEG, PNG, GIF ou WebP)');
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('A imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Converter arquivo para base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const photoUrl = e.target.result;
+        
+        try {
+          // Salvar no servidor
+          const response = await axios.put(
+            `${API_URL}/api/profile`,
+            { foto_url: photoUrl },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (response.data) {
+            // Atualizar estado local
+            setProfile(prev => ({ ...prev, foto_url: photoUrl }));
+            
+            // Atualizar usuário no contexto
+            const updatedUser = { ...user, foto_url: photoUrl };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            
+            toast({
+              title: "Foto atualizada!",
+              description: "Sua foto de perfil foi salva com sucesso.",
+            });
+            
+            console.log('📸 Foto salva no servidor:', photoUrl);
+          }
+        } catch (error) {
+          console.error('❌ Erro ao salvar foto no servidor:', error);
+          toast({
+            variant: "destructive",
+            title: "Erro ao salvar foto",
+            description: "Não foi possível salvar a foto. Tente novamente.",
+          });
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('❌ Erro ao carregar foto:', error);
+      setIsUploading(false);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar foto",
+        description: "Erro ao processar a imagem. Tente novamente.",
+      });
+    }
+  };
+
+  // Função para alternar modo de usuário
+  const handleModeSwitch = async (newMode) => {
+    if (!user.tipos || user.tipos.length <= 1) return;
+    
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/auth/switch-mode`,
+        { tipo_ativo: newMode },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data) {
+        // Atualizar dados do usuário no localStorage
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+        toast({
+          title: "Modo alterado!",
+          description: `Agora você está no modo ${newMode === 'morador' ? 'Morador' : newMode === 'prestador' ? 'Prestador' : 'Administrador'}`,
+        });
+        
+        // Recarregar a página para aplicar as mudanças
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Erro ao alterar modo:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar modo",
+        description: error.response?.data?.detail || "Tente novamente",
+      });
+    }
+  };
+
+  // Função para remover foto
+  const handleRemovePhoto = async () => {
+    try {
+      // Salvar no servidor (remover foto)
+      const response = await axios.put(
+        `${API_URL}/api/profile`,
+        { foto_url: null },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data) {
+        // Atualizar estado local
+        setProfile(prev => ({ ...prev, foto_url: '' }));
+        
+        // Atualizar usuário no contexto
+        const updatedUser = { ...user, foto_url: null };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        toast({
+          title: "Foto removida!",
+          description: "Sua foto de perfil foi removida com sucesso.",
+        });
+        
+        console.log('📸 Foto removida do servidor');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao remover foto do servidor:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao remover foto",
+        description: "Não foi possível remover a foto. Tente novamente.",
+      });
+    }
+  };
+
   const [settings, setSettings] = useState({
     geolocalizacao_ativa: user.geolocalizacao_ativa || false,
     notificacoes_ativadas: user.notificacoes_ativadas !== false,
@@ -2265,7 +2543,15 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Minha Conta</h2>
-        <Button variant="destructive" size="sm" onClick={onLogout}>
+        <Button variant="destructive" size="sm" onClick={() => {
+          console.log('🔍 ProfileContent: Botão Sair clicado');
+          console.log('🔍 ProfileContent: onLogout function:', onLogout);
+          if (onLogout) {
+            onLogout();
+          } else {
+            console.error('❌ ProfileContent: onLogout não está definido');
+          }
+        }}>
           <LogOut className="h-4 w-4 mr-2" />
           Sair
         </Button>
@@ -2276,17 +2562,89 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {user.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
-                </span>
+              <div className="relative group">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                  {profile.foto_url ? (
+                    <img 
+                      src={profile.foto_url} 
+                      alt="Foto do perfil" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold text-white">
+                      {user.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Overlay de upload */}
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                     onClick={() => fileInputRef.current?.click()}>
+                  <div className="text-center text-white">
+                    <svg className="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs">Alterar</span>
+                  </div>
+                </div>
+                
+                {/* Input de arquivo oculto */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                
+                {/* Loading indicator */}
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+                  </div>
+                )}
               </div>
+              
+              {/* Botão para remover foto */}
+              {profile.foto_url && (
+                <button
+                  onClick={handleRemovePhoto}
+                  className="ml-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                  title="Remover foto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
               <div>
                 <h3 className="text-xl font-bold">{user.nome ? user.nome.split(' ')[0] : 'Usuário'}</h3>
                 <p className="text-gray-600">{user.email}</p>
-                <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
-                  {user.tipo === 'morador' ? '🏠 Morador' : '🔧 Prestador'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {user.tipos && user.tipos.length > 1 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.tipos.map((tipo, index) => (
+                        <Button
+                          key={tipo}
+                          variant={user.tipo_ativo === tipo ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-6 px-2"
+                          onClick={() => handleModeSwitch(tipo)}
+                        >
+                          {tipo === 'morador' ? '🏠' : tipo === 'prestador' ? '🔧' : '👑'} {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
+                      {user.tipo === 'morador' ? '🏠 Morador' : user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
+                    </Badge>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    {user.tipos && user.tipos.length > 1 ? 'Clique para alternar' : 'Clique na foto para alterar'}
+                  </span>
+                </div>
               </div>
             </div>
             <Button 
@@ -2620,17 +2978,23 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
   );
 };
 
-function App() {
+function AppContent() {
+  const { user, needsProfileSelection, finishProfileSelection } = useAuth();
+
+  // Se o usuário precisa selecionar perfil, mostrar ProfileSelector
+  if (needsProfileSelection && user) {
+    return <ProfileSelector user={user} onProfileSelected={finishProfileSelection} />;
+  }
+
   return (
-    <AuthProvider>
-      <div className="App">
-        <BrowserRouter>
-          <Routes>
+    <div className="App">
+      <BrowserRouter>
+        <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/conta" element={<ProtectedRoute><ProfileContent user={{}} onUpdate={() => {}} onLogout={() => {}} /></ProtectedRoute>} />
+            <Route path="/conta" element={<ProtectedRoute><ProfileContentWrapper /></ProtectedRoute>} />
             <Route path="/pagamento" element={<ProtectedRoute><EarningsPlaceholder /></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><SecurityPlaceholder /></ProtectedRoute>} />
             <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
@@ -2668,12 +3032,21 @@ function App() {
             <Route path="/meus-pedidos" element={<ProtectedRoute><PageWrapper><MyOrders /></PageWrapper></ProtectedRoute>} />
             <Route path="/avaliar" element={<ProtectedRoute><PageWrapper><ReviewScreen /></PageWrapper></ProtectedRoute>} />
             <Route path="/conta" element={<ProtectedRoute><PageWrapper><ProfileContentWrapper /></PageWrapper></ProtectedRoute>} />
-            <Route path="/pagamento" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Pagamento</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento" element={<ProtectedRoute><PageWrapper><PaymentMethodsWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento/historico" element={<ProtectedRoute><PageWrapper><PaymentHistoryWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento/processar/:bookingId" element={<ProtectedRoute><PageWrapper><PaymentProcessWrapper /></PageWrapper></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Segurança</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </div>
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

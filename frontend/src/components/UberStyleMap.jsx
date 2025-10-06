@@ -8,6 +8,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import ProviderFilters from './ProviderFilters';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -101,7 +102,9 @@ const UberStyleMap = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     categoria: '',
-    radius: 10
+    radius: 10,
+    especialidade: '',
+    disponibilidade: 'todos'
   });
   const [showFilters, setShowFilters] = useState(false);
   const [address, setAddress] = useState("");
@@ -165,7 +168,29 @@ const UberStyleMap = ({ user }) => {
       });
       if (!resp.ok) throw new Error('Falha ao buscar prestadores');
       const data = await resp.json();
-      const list = Array.isArray(data.providers) ? data.providers : [];
+      let list = Array.isArray(data.providers) ? data.providers : [];
+      
+      // Aplicar filtros de especialidade e disponibilidade no frontend
+      if (filters.especialidade) {
+        list = list.filter(provider => 
+          provider.especialidades && 
+          provider.especialidades.some(esp => 
+            esp.toLowerCase().includes(filters.especialidade.toLowerCase())
+          )
+        );
+      }
+      
+      if (filters.disponibilidade !== 'todos') {
+        list = list.filter(provider => {
+          if (filters.disponibilidade === 'online') {
+            return provider.disponivel === true;
+          } else if (filters.disponibilidade === 'indisponivel') {
+            return provider.disponivel === false;
+          }
+          return true;
+        });
+      }
+      
       setProviders(list);
     } catch (error) {
       console.error('Error loading providers:', error);
@@ -383,58 +408,17 @@ const UberStyleMap = ({ user }) => {
             >
               {geocoding ? 'Buscando...' : 'Centralizar'}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-            >
-              <Filter className="h-4 w-4 mr-1" />
-              Filtros
-            </Button>
+            <ProviderFilters
+              filters={filters}
+              setFilters={setFilters}
+              onApplyFilters={handleFilterChange}
+              loading={loading}
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+            />
           </div>
         </div>
 
-        {/* Filters */}
-        {showFilters && (
-          <Card className="mt-4 bg-gray-800 border-gray-600">
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="text-sm text-gray-300 mb-2 block">Categoria</label>
-                <Select value={filters.categoria} onValueChange={(value) => setFilters({...filters, categoria: value})}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Todas as categorias" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">Todas as categorias</SelectItem>
-                    <SelectItem value="limpeza">🧹 Limpeza</SelectItem>
-                    <SelectItem value="manutencao">🔧 Manutenção</SelectItem>
-                    <SelectItem value="jardinagem">🌱 Jardinagem</SelectItem>
-                    <SelectItem value="pintura">🎨 Pintura</SelectItem>
-                    <SelectItem value="eletrica">⚡ Elétrica</SelectItem>
-                    <SelectItem value="encanamento">🚰 Encanamento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm text-gray-300 mb-2 block">Raio de busca: {filters.radius}km</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={filters.radius}
-                  onChange={(e) => setFilters({...filters, radius: parseInt(e.target.value)})}
-                  className="w-full"
-                />
-              </div>
-              
-              <Button onClick={handleFilterChange} className="w-full" disabled={loading}>
-                {loading ? 'Buscando...' : 'Aplicar Filtros'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Bottom Sheet - Provider List */}
@@ -469,6 +453,20 @@ const UberStyleMap = ({ user }) => {
                           <div>
                             <h3 className="font-semibold text-white">{provider.nome}</h3>
                             <p className="text-sm text-gray-300">{service.nome}</p>
+                            {provider.especialidades && provider.especialidades.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {provider.especialidades.slice(0, 3).map((esp, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs bg-blue-900 text-blue-200">
+                                    {esp}
+                                  </Badge>
+                                ))}
+                                {provider.especialidades.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+                                    +{provider.especialidades.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                             <div className="flex items-center space-x-4 mt-1">
                               <span className="text-sm text-green-400 flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
@@ -477,6 +475,14 @@ const UberStyleMap = ({ user }) => {
                               <span className="text-sm text-yellow-400 flex items-center">
                                 <Star className="h-3 w-3 mr-1" />
                                 {service.media_avaliacoes > 0 ? service.media_avaliacoes : 'Novo'}
+                              </span>
+                              <span className={`text-sm flex items-center ${
+                                provider.disponivel ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                <div className={`w-2 h-2 rounded-full mr-1 ${
+                                  provider.disponivel ? 'bg-green-400' : 'bg-red-400'
+                                }`}></div>
+                                {provider.disponivel ? 'Online' : 'Indisponível'}
                               </span>
                             </div>
                           </div>
