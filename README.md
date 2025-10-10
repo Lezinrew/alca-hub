@@ -87,7 +87,7 @@ O Alça Hub também está disponível como aplicativos nativos para Android e iO
 - 📱 **Compatibilidade**: iOS 15+ (iPhone/iPad)
 
 ### **📚 Documentação Completa**
-- 📖 **[Índice da Documentação](docs/README.md)** - Navegação completa
+- 📖 **[Índice da Documentação](DOCUMENTACAO_INDEX.md)** - Navegação completa
 - 🚀 **[Guia de Instalação](docs/guides/installation/GUIA_INSTALACAO.md)** - Setup completo
 - 📱 **[Mobile](docs/mobile/)** - Apps Android e iOS
 - 🔧 **[Desenvolvimento](docs/guides/)** - Guias de desenvolvimento

@@ -11,17 +11,17 @@ Este arquivo serve como índice central para toda a documentação do projeto Al
 ## 📱 Aplicativos Mobile
 
 ### **Android**
-- 📖 **[GUIA_ANDROID_APK.md](GUIA_ANDROID_APK.md)** - Guia completo para gerar APK
-- 🧪 **[TESTE_ANDROID_CELULAR.md](TESTE_ANDROID_CELULAR.md)** - Como testar no celular Android
+- 📖 **[GUIA_ANDROID_APK.md](docs/mobile/android/GUIA_ANDROID_APK.md)** - Guia completo para gerar APK
+- 🧪 **[TESTE_ANDROID_CELULAR.md](docs/mobile/android/TESTE_ANDROID_CELULAR.md)** - Como testar no celular Android
 
 ### **iOS**
-- 📖 **[GUIA_IOS_APP.md](GUIA_IOS_APP.md)** - Guia completo para gerar app iOS
-- 🧪 **[TESTE_IOS_IPHONE.md](TESTE_IOS_IPHONE.md)** - Como testar no iPhone/iPad
+- 📖 **[GUIA_IOS_APP.md](docs/mobile/ios/GUIA_IOS_APP.md)** - Guia completo para gerar app iOS
+- 🧪 **[TESTE_IOS_IPHONE.md](docs/mobile/ios/TESTE_IOS_IPHONE.md)** - Como testar no iPhone/iPad
 
 ## 🚀 Instalação e Configuração
 
 ### **Guia de Instalação**
-- 📖 **[GUIA_INSTALACAO.md](GUIA_INSTALACAO.md)** - Instruções de instalação
+- 📖 **[GUIA_INSTALACAO.md](docs/guides/installation/GUIA_INSTALACAO.md)** - Instruções de instalação
 - 🐳 **Docker**, **ambiente local**, **dependências**
 
 ### **Guia de Testes**
@@ -52,28 +52,9 @@ Este arquivo serve como índice central para toda a documentação do projeto Al
 - 🧭 **[NAVEGABILIDADE_MELHORADA.md](NAVEGABILIDADE_MELHORADA.md)** - Melhorias de navegação
 - 📱 **Mobile**, **desktop**, **responsividade**
 
-## 🐛 Correções e Melhorias
-
-### **Correções Implementadas**
-- ✅ **[ERRO_401_FINALMENTE_CORRIGIDO.md](ERRO_401_FINALMENTE_CORRIGIDO.md)** - Correção de autenticação
-- ✅ **[ERRO_MAPA_CORRIGIDO.md](ERRO_MAPA_CORRIGIDO.md)** - Correção do mapa
-- ✅ **[TELA_BRANCA_CORRIGIDA.md](TELA_BRANCA_CORRIGIDA.md)** - Correção de tela branca
-- ✅ **[FRONTEND_NAO_ABRE_CORRIGIDO.md](FRONTEND_NAO_ABRE_CORRIGIDO.md)** - Correção de inicialização
-
-### **Funcionalidades Implementadas**
-- 🆕 **[AGENDAMENTO_COMPLETO_IMPLEMENTADO.md](AGENDAMENTO_COMPLETO_IMPLEMENTADO.md)** - Sistema de agendamento
-- 🆕 **[MEUS_PEDIDOS_IMPLEMENTADO.md](MEUS_PEDIDOS_IMPLEMENTADO.md)** - Gestão de pedidos
-- 🆕 **[VERSAO_MOBILE_IMPLEMENTADA.md](VERSAO_MOBILE_IMPLEMENTADA.md)** - Versão mobile
-
 ## 📊 Relatórios e Status
 
-### **Status do Projeto**
-- 📈 **[STATUS_APLICACAO_FUNCIONANDO.md](STATUS_APLICACAO_FUNCIONANDO.md)** - Status atual
-- 🎯 **[FUNCIONALIDADES_IMPLEMENTADAS.md](FUNCIONALIDADES_IMPLEMENTADAS.md)** - Funcionalidades
-- 🛣️ **[ROTAS_IMPLEMENTADAS.md](ROTAS_IMPLEMENTADAS.md)** - Rotas da API
-
 ### **Relatórios de Testes**
-- 📊 **[RELATORIO_TESTES_PERFORMANCE.md](RELATORIO_TESTES_PERFORMANCE.md)** - Testes de performance
 - ✅ **[CHECKLIST_TESTES_PERFORMANCE.md](CHECKLIST_TESTES_PERFORMANCE.md)** - Checklist de testes
 
 ## 🔄 Migrações e Atualizações
@@ -102,57 +83,50 @@ Este arquivo serve como índice central para toda a documentação do projeto Al
 ## 🎯 Por Categoria
 
 ### **Para Desenvolvedores**
-- 📖 README.md
-- 🔧 GUIA_INSTALACAO.md
-- 🧪 INSTRUCOES_TESTES.md
-- 🐳 DOCKER.md
-- ⚡ INSTRUCOES_PERFORMANCE.md
-- 🔒 INSTRUCOES_SEGURANCA.md
+- 📖 [README.md](README.md)
+- 🔧 [docs/guides/installation/GUIA_INSTALACAO.md](docs/guides/installation/GUIA_INSTALACAO.md)
+- 🧪 [INSTRUCOES_TESTES.md](INSTRUCOES_TESTES.md)
+- 🐳 [DOCKER.md](DOCKER.md)
+- ⚡ [INSTRUCOES_PERFORMANCE.md](INSTRUCOES_PERFORMANCE.md)
+- 🔒 [INSTRUCOES_SEGURANCA.md](INSTRUCOES_SEGURANCA.md)
 
 ### **Para Android**
-- 📱 GUIA_ANDROID_APK.md
-- 🧪 TESTE_ANDROID_CELULAR.md
+- 📱 [docs/mobile/android/GUIA_ANDROID_APK.md](docs/mobile/android/GUIA_ANDROID_APK.md)
+- 🧪 [docs/mobile/android/TESTE_ANDROID_CELULAR.md](docs/mobile/android/TESTE_ANDROID_CELULAR.md)
 
 ### **Para iOS**
-- 📱 GUIA_IOS_APP.md
-- 🧪 TESTE_IOS_IPHONE.md
+- 📱 [docs/mobile/ios/GUIA_IOS_APP.md](docs/mobile/ios/GUIA_IOS_APP.md)
+- 🧪 [docs/mobile/ios/TESTE_IOS_IPHONE.md](docs/mobile/ios/TESTE_IOS_IPHONE.md)
 
 ### **Para Designers**
-- 🎨 INSTRUCOES_DESIGN_SYSTEM.md
-- 🧭 NAVEGABILIDADE_MELHORADA.md
-- 🎨 EXPERIENCIA_USUARIO_MELHORADA.md
+- 🎨 [INSTRUCOES_DESIGN_SYSTEM.md](INSTRUCOES_DESIGN_SYSTEM.md)
+- 🧭 [NAVEGABILIDADE_MELHORADA.md](NAVEGABILIDADE_MELHORADA.md)
+- 🎨 [EXPERIENCIA_USUARIO_MELHORADA.md](EXPERIENCIA_USUARIO_MELHORADA.md)
 
 ### **Para Testes**
-- 🧪 INSTRUCOES_TESTES.md
-- 🧪 COMO_TESTAR_NOVAS_FUNCIONALIDADES.md
-- 🧪 TESTE_ANDROID_CELULAR.md
-- 🌐 GUIA_TESTE_WEB.md
+- 🧪 [INSTRUCOES_TESTES.md](INSTRUCOES_TESTES.md)
+- 🧪 [COMO_TESTAR_NOVAS_FUNCIONALIDADES.md](COMO_TESTAR_NOVAS_FUNCIONALIDADES.md)
+- 🧪 [docs/mobile/android/TESTE_ANDROID_CELULAR.md](docs/mobile/android/TESTE_ANDROID_CELULAR.md)
+- 🌐 [GUIA_TESTE_WEB.md](GUIA_TESTE_WEB.md)
 
 ### **Para Deploy**
-- 🐳 DOCKER.md
-- 🚀 INSTRUCOES_PUSH_GITHUB.md
-- 📊 RELATORIO_TESTES_PERFORMANCE.md
+- 🐳 [DOCKER.md](DOCKER.md)
+- 🚀 [INSTRUCOES_PUSH_GITHUB.md](INSTRUCOES_PUSH_GITHUB.md)
+- 📊 [CHECKLIST_TESTES_PERFORMANCE.md](CHECKLIST_TESTES_PERFORMANCE.md)
 
 ## 🔍 Busca Rápida
 
-### **Problemas Comuns**
-- 🔍 **Tela branca**: TELA_BRANCA_CORRIGIDA.md
-- 🔍 **Frontend não abre**: FRONTEND_NAO_ABRE_CORRIGIDO.md
-- 🔍 **Erro 401**: ERRO_401_FINALMENTE_CORRIGIDO.md
-- 🔍 **Problemas no mapa**: ERRO_MAPA_CORRIGIDO.md
+### **Configuração**
+- 🔍 **Instalação**: [docs/guides/installation/GUIA_INSTALACAO.md](docs/guides/installation/GUIA_INSTALACAO.md)
+- 🔍 **Docker**: [DOCKER.md](DOCKER.md)
+- 🔍 **Android**: [docs/mobile/android/GUIA_ANDROID_APK.md](docs/mobile/android/GUIA_ANDROID_APK.md)
+- 🔍 **iOS**: [docs/mobile/ios/GUIA_IOS_APP.md](docs/mobile/ios/GUIA_IOS_APP.md)
+- 🔍 **Testes**: [INSTRUCOES_TESTES.md](INSTRUCOES_TESTES.md)
 
 ### **Funcionalidades**
-- 🔍 **Agendamento**: AGENDAMENTO_COMPLETO_IMPLEMENTADO.md
-- 🔍 **Pedidos**: MEUS_PEDIDOS_IMPLEMENTADO.md
-- 🔍 **Mobile**: VERSAO_MOBILE_IMPLEMENTADA.md
-- 🔍 **Busca**: SISTEMA_BUSCA_MELHORADO.md
-
-### **Configuração**
-- 🔍 **Instalação**: GUIA_INSTALACAO.md
-- 🔍 **Docker**: DOCKER.md
-- 🔍 **Android**: GUIA_ANDROID_APK.md
-- 🔍 **iOS**: GUIA_IOS_APP.md
-- 🔍 **Testes**: INSTRUCOES_TESTES.md
+- 🔍 **Busca**: [SISTEMA_BUSCA_MELHORADO.md](SISTEMA_BUSCA_MELHORADO.md)
+- 🔍 **UX**: [EXPERIENCIA_USUARIO_MELHORADA.md](EXPERIENCIA_USUARIO_MELHORADA.md)
+- 🔍 **Navegação**: [NAVEGABILIDADE_MELHORADA.md](NAVEGABILIDADE_MELHORADA.md)
 
 ---
 
