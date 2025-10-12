@@ -10,12 +10,11 @@ import os
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Configurações de segurança
-# TODO(security): Mover estes valores hardcoded para variáveis de ambiente no arquivo .env.
 SECRET_KEY = os.getenv("SECRET_KEY", "alca-hub-secret-key-2025")
-JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15  # 15 minutos
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 dias
-REFRESH_TOKEN_LENGTH = 64  # 64 caracteres
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 15 minutos
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7 dias
+REFRESH_TOKEN_LENGTH = int(os.getenv("REFRESH_TOKEN_LENGTH", "64"))  # 64 caracteres
 
 # Contexto de criptografia
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__max_rounds=12)

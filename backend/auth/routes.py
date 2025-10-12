@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime
 import logging
+import os
 
 from .token_manager import TokenManager, extract_token_from_header
 from .security import (
@@ -188,8 +189,7 @@ async def login(
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        expires_in=15 * 60,  # 15 minutos
-        # TODO(security): Mover este valor hardcoded para uma variável de ambiente no arquivo .env.
+        expires_in=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15")) * 60,  # minutos em segundos
         user=user_data,
     )
 
@@ -303,7 +303,7 @@ async def refresh_token(
         return RefreshResponse(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
-            expires_in=15 * 60,  # 15 minutos
+            expires_in=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15")) * 60,  # minutos em segundos
         )
 
     except HTTPException as e:

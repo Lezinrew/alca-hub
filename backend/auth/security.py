@@ -11,15 +11,16 @@ from collections import defaultdict
 import time
 
 # Configurações de rate limiting
-# TODO(security): Mover estes valores hardcoded para variáveis de ambiente no arquivo .env.
-RATE_LIMIT_WINDOW = 60  # 1 minuto
-RATE_LIMIT_MAX_REQUESTS = 100  # 100 requests por minuto
-RATE_LIMIT_LOGIN_ATTEMPTS = 5  # 5 tentativas de login por minuto
-RATE_LIMIT_LOGIN_WINDOW = 15  # 15 minutos
+import os
+
+RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))  # 1 minuto
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "100"))  # 100 requests por minuto
+RATE_LIMIT_LOGIN_ATTEMPTS = int(os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))  # 5 tentativas de login por minuto
+RATE_LIMIT_LOGIN_WINDOW = int(os.getenv("RATE_LIMIT_LOGIN_WINDOW", "15"))  # 15 minutos
 
 # Configurações de blacklist
-BLACKLIST_CLEANUP_INTERVAL = 3600  # 1 hora
-BLACKLIST_TOKEN_LIFETIME = 86400  # 24 horas
+BLACKLIST_CLEANUP_INTERVAL = int(os.getenv("BLACKLIST_CLEANUP_INTERVAL", "3600"))  # 1 hora
+BLACKLIST_TOKEN_LIFETIME = int(os.getenv("BLACKLIST_TOKEN_LIFETIME", "86400"))  # 24 horas
 
 
 class SecurityManager:
