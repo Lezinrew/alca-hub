@@ -3171,6 +3171,8 @@ from chat.routes import chat_router
 from reviews.routes import review_router
 from analytics.routes import analytics_router
 from websocket_manager import websocket_manager
+from monitoring.metrics import performance_monitor, health_checker
+from cache.manager import cache_manager
 
 app.include_router(notification_router)
 app.include_router(chat_router)
@@ -3194,6 +3196,68 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     except Exception as e:
         logger.error(f"Erro no WebSocket global: {e}")
         await websocket_manager.disconnect(websocket, user_id)
+
+
+# Endpoints de Monitoramento
+@app.get("/health")
+async def health_check():
+    """Verificação de saúde do sistema."""
+    try:
+        # Executar verificações de saúde
+        health_results = await health_checker.run_health_checks()
+        
+        # Verificar se todas as verificações passaram
+        all_healthy = all(
+            result.get("status") == "healthy" 
+            for result in health_results.values()
+        )
+        
+        status_code = 200 if all_healthy else 503
+        
+        return {
+            "status": "healthy" if all_healthy else "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "checks": health_results,
+            "uptime": performance_monitor.metrics.get_all_metrics()["uptime_seconds"]
+        }
+    except Exception as e:
+        logger.error(f"Erro na verificação de saúde: {e}")
+        return {
+            "status": "error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """Obter métricas de performance."""
+    try:
+        return performance_monitor.get_performance_summary()
+    except Exception as e:
+        logger.error(f"Erro ao obter métricas: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/cache/stats")
+async def get_cache_stats():
+    """Obter estatísticas do cache."""
+    try:
+        return cache_manager.get_stats()
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas do cache: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/cache/clear")
+async def clear_cache():
+    """Limpar cache."""
+    try:
+        await cache_manager.clear()
+        return {"message": "Cache limpo com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao limpar cache: {e}")
+        return {"error": str(e)}
 
 # Configure logging
 logging.basicConfig(
