@@ -11,6 +11,7 @@ from collections import defaultdict
 import time
 
 # Configurações de rate limiting
+# TODO(security): Mover estes valores hardcoded para variáveis de ambiente no arquivo .env.
 RATE_LIMIT_WINDOW = 60  # 1 minuto
 RATE_LIMIT_MAX_REQUESTS = 100  # 100 requests por minuto
 RATE_LIMIT_LOGIN_ATTEMPTS = 5  # 5 tentativas de login por minuto
@@ -37,6 +38,7 @@ class SecurityManager:
 
     async def _cleanup_rate_limits(self):
         """Limpar dados de rate limiting expirados."""
+        # TODO(refactor): Esta função parece complexa. Avaliar se pode ser quebrada em funções menores e mais simples.
         while True:
             current_time = time.time()
             for key in list(self.rate_limit_storage.keys()):
@@ -178,6 +180,7 @@ class SecurityManager:
 
     async def detect_suspicious_activity(self, user_id: str) -> bool:
         """Detectar atividade suspeita do usuário."""
+        # TODO(tests): Criar um teste unitário para validar o comportamento desta função.
         # Verificar tentativas de login recentes
         recent_login_attempts = await self.db.security_logs.count_documents(
             {

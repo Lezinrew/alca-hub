@@ -10,6 +10,7 @@ import os
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Configurações de segurança
+# TODO(security): Mover estes valores hardcoded para variáveis de ambiente no arquivo .env.
 SECRET_KEY = os.getenv("SECRET_KEY", "alca-hub-secret-key-2025")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15  # 15 minutos
@@ -137,6 +138,7 @@ class TokenManager:
 
     def verify_access_token(self, token: str) -> Dict:
         """Verificar e decodificar token de acesso."""
+        # TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
 

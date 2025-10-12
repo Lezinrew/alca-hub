@@ -120,6 +120,7 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
+      // TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
       const result = await login(formatEmail(formData.email), formData.password);
       
       if (result.success) {
@@ -147,6 +148,7 @@ const LoginForm = () => {
   };
 
   const getEmailStatus = () => {
+    // TODO(tests): Criar um teste unitário para validar o comportamento desta função.
     if (!touched.email || !formData.email) return null;
     
     if (isValidEmail(formData.email) && hasValidDomain(formData.email)) {

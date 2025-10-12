@@ -76,6 +76,7 @@ class LogoutResponse(BaseModel):
 # Dependências
 async def get_token_manager(db: AsyncIOMotorDatabase = Depends()) -> TokenManager:
     """Obter instância do gerenciador de tokens."""
+    # TODO(refactor): Adicionar docstring explicando o que esta função faz, seus parâmetros e o que retorna.
     return TokenManager(db)
 
 
@@ -122,6 +123,7 @@ async def login(
 ):
     """Fazer login do usuário."""
     # Verificar rate limiting
+    # TODO(security): Mover este valor hardcoded para uma variável de ambiente no arquivo .env.
     client_id = f"{request.client.host}:{request.headers.get('user-agent', '')[:8]}"
     rate_limit_result = await check_rate_limit(client_id, RateLimitType.LOGIN)
 
@@ -187,6 +189,7 @@ async def login(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=15 * 60,  # 15 minutos
+        # TODO(security): Mover este valor hardcoded para uma variável de ambiente no arquivo .env.
         user=user_data,
     )
 
@@ -287,6 +290,7 @@ async def refresh_token(
     """Renovar access token usando refresh token."""
     try:
         # Renovar tokens
+        # TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
         new_access_token, new_refresh_token = await token_manager.refresh_access_token(
             refresh_data.refresh_token
         )
