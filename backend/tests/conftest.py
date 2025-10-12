@@ -10,14 +10,16 @@ from faker import Faker
 
 # Importar a aplicação
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server import app, get_database
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
 # Configurações de teste
 TEST_DATABASE_URL = "mongodb://localhost:27017"
 TEST_DATABASE_NAME = "alca_hub_test"
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -25,6 +27,7 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest.fixture(scope="session")
 async def test_db():
@@ -36,16 +39,19 @@ async def test_db():
     await client.drop_database(TEST_DATABASE_NAME)
     client.close()
 
+
 @pytest.fixture
 def client():
     """Cliente de teste síncrono para FastAPI."""
     return TestClient(app)
+
 
 @pytest.fixture
 async def async_client():
     """Cliente de teste assíncrono para FastAPI."""
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+
 
 @pytest.fixture
 def mock_database():
@@ -59,6 +65,7 @@ def mock_database():
     mock_db.chats = AsyncMock()
     return mock_db
 
+
 @pytest.fixture
 def sample_user_data():
     """Dados de exemplo para usuário."""
@@ -69,8 +76,9 @@ def sample_user_data():
         "telefone": fake.phone_number(),
         "tipo": "morador",
         "apartamento": fake.building_number(),
-        "bloco": fake.building_number()
+        "bloco": fake.building_number(),
     }
+
 
 @pytest.fixture
 def sample_service_data():
@@ -78,11 +86,14 @@ def sample_service_data():
     return {
         "nome": fake.job(),
         "descricao": fake.text(max_nb_chars=200),
-        "categoria": fake.random_element(elements=("limpeza", "manutencao", "jardinagem", "seguranca")),
+        "categoria": fake.random_element(
+            elements=("limpeza", "manutencao", "jardinagem", "seguranca")
+        ),
         "preco_base": fake.random_number(digits=2),
         "prestador_id": fake.uuid4(),
-        "disponivel": True
+        "disponivel": True,
     }
+
 
 @pytest.fixture
 def sample_booking_data():
@@ -92,20 +103,21 @@ def sample_booking_data():
         "morador_id": fake.uuid4(),
         "data_agendamento": fake.future_datetime(),
         "observacoes": fake.text(max_nb_chars=100),
-        "status": "pendente"
+        "status": "pendente",
     }
+
 
 @pytest.fixture
 def auth_headers():
     """Headers de autenticação para testes."""
-    return {
-        "Authorization": "Bearer test_token_123"
-    }
+    return {"Authorization": "Bearer test_token_123"}
+
 
 @pytest.fixture
 def mock_jwt_token():
     """Mock de token JWT para testes."""
     return "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiaWF0IjoxNjQwOTk1MjAwLCJleHAiOjE2NDA5OTg4MDB9.test_signature"
+
 
 # Fixtures para diferentes tipos de usuários
 @pytest.fixture
@@ -118,8 +130,9 @@ def morador_user():
         "tipo": "morador",
         "apartamento": fake.building_number(),
         "bloco": fake.building_number(),
-        "ativo": True
+        "ativo": True,
     }
+
 
 @pytest.fixture
 def prestador_user():
@@ -130,8 +143,9 @@ def prestador_user():
         "email": fake.email(),
         "tipo": "prestador",
         "especialidades": [fake.job() for _ in range(3)],
-        "ativo": True
+        "ativo": True,
     }
+
 
 @pytest.fixture
 def admin_user():
@@ -141,8 +155,9 @@ def admin_user():
         "nome": fake.name(),
         "email": fake.email(),
         "tipo": "admin",
-        "ativo": True
+        "ativo": True,
     }
+
 
 # Configurações de ambiente para testes
 @pytest.fixture(autouse=True)

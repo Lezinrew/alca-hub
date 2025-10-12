@@ -12,38 +12,40 @@ from .security import SecurityManager
 # Router para dashboard
 dashboard_router = APIRouter(prefix="/api/admin/rate-limit", tags=["dashboard"])
 
+
 # Dependências
 async def get_rate_limiter() -> RedisRateLimiter:
     """Obter instância do rate limiter."""
     return RedisRateLimiter()
 
+
 async def get_security_manager() -> SecurityManager:
     """Obter instância do gerenciador de segurança."""
     return SecurityManager(None)
 
+
 @dashboard_router.get("/stats", response_model=Dict)
-async def get_global_stats(
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
-):
+async def get_global_stats(rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)):
     """Obter estatísticas globais de rate limiting."""
     try:
         stats = await rate_limiter.get_global_stats()
         return {
             "success": True,
             "data": stats,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter estatísticas: {str(e)}"
+            detail=f"Erro ao obter estatísticas: {str(e)}",
         )
+
 
 @dashboard_router.get("/info/{client_id}")
 async def get_client_info(
     client_id: str,
     rule_name: str = Query("general", description="Nome da regra de rate limiting"),
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter),
 ):
     """Obter informações de rate limiting para um cliente específico."""
     try:
@@ -51,18 +53,18 @@ async def get_client_info(
         return {
             "success": True,
             "data": info,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter informações: {str(e)}"
+            detail=f"Erro ao obter informações: {str(e)}",
         )
+
 
 @dashboard_router.post("/whitelist/{ip}")
 async def add_ip_to_whitelist(
-    ip: str,
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    ip: str, rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
 ):
     """Adicionar IP à whitelist."""
     try:
@@ -70,18 +72,18 @@ async def add_ip_to_whitelist(
         return {
             "success": success,
             "message": f"IP {ip} adicionado à whitelist",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao adicionar IP à whitelist: {str(e)}"
+            detail=f"Erro ao adicionar IP à whitelist: {str(e)}",
         )
+
 
 @dashboard_router.delete("/whitelist/{ip}")
 async def remove_ip_from_whitelist(
-    ip: str,
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    ip: str, rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
 ):
     """Remover IP da whitelist."""
     try:
@@ -89,18 +91,18 @@ async def remove_ip_from_whitelist(
         return {
             "success": success,
             "message": f"IP {ip} removido da whitelist",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao remover IP da whitelist: {str(e)}"
+            detail=f"Erro ao remover IP da whitelist: {str(e)}",
         )
+
 
 @dashboard_router.post("/blacklist/{ip}")
 async def add_ip_to_blacklist(
-    ip: str,
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    ip: str, rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
 ):
     """Adicionar IP à blacklist."""
     try:
@@ -108,18 +110,18 @@ async def add_ip_to_blacklist(
         return {
             "success": success,
             "message": f"IP {ip} adicionado à blacklist",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao adicionar IP à blacklist: {str(e)}"
+            detail=f"Erro ao adicionar IP à blacklist: {str(e)}",
         )
+
 
 @dashboard_router.delete("/blacklist/{ip}")
 async def remove_ip_from_blacklist(
-    ip: str,
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    ip: str, rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
 ):
     """Remover IP da blacklist."""
     try:
@@ -127,19 +129,20 @@ async def remove_ip_from_blacklist(
         return {
             "success": success,
             "message": f"IP {ip} removido da blacklist",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao remover IP da blacklist: {str(e)}"
+            detail=f"Erro ao remover IP da blacklist: {str(e)}",
         )
+
 
 @dashboard_router.post("/reset/{client_id}")
 async def reset_client_rate_limit(
     client_id: str,
     rule_name: str = Query("general", description="Nome da regra de rate limiting"),
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter),
 ):
     """Resetar rate limiting para um cliente específico."""
     try:
@@ -147,17 +150,18 @@ async def reset_client_rate_limit(
         return {
             "success": success,
             "message": f"Rate limiting resetado para {client_id}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao resetar rate limiting: {str(e)}"
+            detail=f"Erro ao resetar rate limiting: {str(e)}",
         )
+
 
 @dashboard_router.post("/cleanup")
 async def cleanup_expired_data(
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter),
 ):
     """Limpar dados expirados de rate limiting."""
     try:
@@ -166,17 +170,18 @@ async def cleanup_expired_data(
             "success": True,
             "message": f"{cleaned} entradas expiradas foram limpas",
             "cleaned_count": cleaned,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao limpar dados expirados: {str(e)}"
+            detail=f"Erro ao limpar dados expirados: {str(e)}",
         )
+
 
 @dashboard_router.get("/rules")
 async def get_rate_limit_rules(
-    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter)
+    rate_limiter: RedisRateLimiter = Depends(get_rate_limiter),
 ):
     """Obter regras de rate limiting configuradas."""
     try:
@@ -189,19 +194,20 @@ async def get_rate_limit_rules(
                 "strategy": rule.strategy.value,
                 "block_duration": rule.block_duration,
                 "burst_limit": rule.burst_limit,
-                "refill_rate": rule.refill_rate
+                "refill_rate": rule.refill_rate,
             }
-        
+
         return {
             "success": True,
             "data": rules,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter regras: {str(e)}"
+            detail=f"Erro ao obter regras: {str(e)}",
         )
+
 
 @dashboard_router.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard_html():
@@ -491,5 +497,5 @@ async def get_dashboard_html():
     </body>
     </html>
     """
-    
+
     return HTMLResponse(content=html_content)

@@ -1,0 +1,16 @@
+{
+  "cursor.general.enableAutoContext": true,
+  "cursor.general.maxTokens": 2000,
+  "cursor.general.temperature": 0.7,
+  "cursor.general.model": "gpt-3.5-turbo",
+  "cursor.general.maxRequestsPerMinute": 20,
+  "cursor.general.contextWindow": 4000,
+  "cursor.general.usageAlerts": true,
+  "cursor.general.dailyLimit": 50,
+  "cursor.general.weeklyLimit": 200,
+  "cursor.general.enableRateLimiting": true,
+  "cursor.general.optimizePrompts": true,
+  "cursor.general.enableCaching": true,
+  "cursor.general.maxContextFiles": 5,
+  "cursor.general.prioritizeRelevantFiles": true
+}
