@@ -14,8 +14,8 @@ from .models import (
     NotificationPreferences
 )
 from .manager import NotificationManager
-from ..auth.token_manager import TokenManager
-from ..auth.security import SecurityManager
+from auth.token_manager import TokenManager
+from auth.security import SecurityManager
 
 logger = logging.getLogger(__name__)
 

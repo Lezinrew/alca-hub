@@ -5,8 +5,8 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import logging
 
-from ..notifications.manager import NotificationManager
-from ..notifications.models import NotificationCreate, NotificationType, NotificationPriority
+from notifications.manager import NotificationManager
+from notifications.models import NotificationCreate, NotificationType, NotificationPriority
 
 logger = logging.getLogger(__name__)
 

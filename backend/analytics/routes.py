@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
 import logging
 
-from .models import (
+from analytics.models import (
     UserAnalytics,
     ServiceAnalytics,
     BookingAnalytics,

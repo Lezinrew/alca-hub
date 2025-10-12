@@ -7,6 +7,8 @@ from fastapi import (
     Request,
     BackgroundTasks,
     Query,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.security import (
     HTTPBearer,
@@ -3168,11 +3170,30 @@ from notifications.routes import notification_router
 from chat.routes import chat_router
 from reviews.routes import review_router
 from analytics.routes import analytics_router
+from websocket_manager import websocket_manager
 
 app.include_router(notification_router)
 app.include_router(chat_router)
 app.include_router(review_router)
 app.include_router(analytics_router)
+
+# Endpoint WebSocket global
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    """Endpoint WebSocket global para todas as funcionalidades."""
+    await websocket_manager.connect(websocket, user_id)
+    
+    try:
+        while True:
+            # Receber mensagens do cliente
+            data = await websocket.receive_text()
+            await websocket_manager.handle_websocket_message(websocket, data)
+            
+    except WebSocketDisconnect:
+        await websocket_manager.disconnect(websocket, user_id)
+    except Exception as e:
+        logger.error(f"Erro no WebSocket global: {e}")
+        await websocket_manager.disconnect(websocket, user_id)
 
 # Configure logging
 logging.basicConfig(

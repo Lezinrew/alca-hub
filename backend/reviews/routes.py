@@ -5,7 +5,7 @@ from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import logging
 
-from .models import (
+from reviews.models import (
     ReviewCreate,
     ReviewResponse,
     ReviewUpdate,

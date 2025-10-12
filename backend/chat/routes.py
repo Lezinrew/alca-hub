@@ -5,7 +5,7 @@ from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import logging
 
-from .models import (
+from chat.models import (
     MessageCreate,
     MessageResponse,
     ChatRoomCreate,
@@ -14,7 +14,7 @@ from .models import (
     ChatStats,
     TypingIndicator
 )
-from .manager import ChatManager
+from chat.manager import ChatManager
 
 logger = logging.getLogger(__name__)
 
