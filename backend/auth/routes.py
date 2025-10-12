@@ -147,8 +147,9 @@ async def login(
 ):
     """Fazer login do usuário."""
     # Verificar rate limiting
-    # TODO(security): Mover este valor hardcoded para uma variável de ambiente no arquivo .env.
-    client_id = f"{request.client.host}:{request.headers.get('user-agent', '')[:8]}"
+    # Usar configuração de identificação de cliente via variáveis de ambiente
+    user_agent_length = int(os.getenv("CLIENT_ID_USER_AGENT_LENGTH", "8"))
+    client_id = f"{request.client.host}:{request.headers.get('user-agent', '')[:user_agent_length]}"
     rate_limit_result = await check_rate_limit(client_id, RateLimitType.LOGIN)
 
     if not rate_limit_result.allowed:

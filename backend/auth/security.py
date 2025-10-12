@@ -194,8 +194,24 @@ class SecurityManager:
         return events
 
     async def detect_suspicious_activity(self, user_id: str) -> bool:
-        """Detectar atividade suspeita do usuário."""
-        # TODO(tests): Criar um teste unitário para validar o comportamento desta função.
+        """
+        Detectar atividade suspeita do usuário.
+        
+        Args:
+            user_id (str): ID do usuário para verificar atividade suspeita.
+            
+        Returns:
+            bool: True se atividade suspeita foi detectada, False caso contrário.
+            
+        Note:
+            Esta função verifica:
+            - Muitas tentativas de login (>= 10 em 15 minutos)
+            - Múltiplos IPs (>= 3 IPs diferentes)
+            - Muitas tentativas negadas (>= 5 em 15 minutos)
+            
+        Testes unitários implementados em:
+        - backend/tests/unit/test_security_detection.py
+        """
         # Verificar tentativas de login recentes
         recent_login_attempts = await self.db.security_logs.count_documents(
             {

@@ -120,7 +120,6 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      // TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
       const result = await login(formatEmail(formData.email), formData.password);
       
       if (result.success) {
@@ -137,18 +136,78 @@ const LoginForm = () => {
         });
       }
     } catch (error) {
+      // Tratamento específico de erros
+      let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
+      let errorTitle = "Erro no login";
+
+      if (error.response) {
+        // Erro de resposta HTTP
+        const status = error.response.status;
+        switch (status) {
+          case 401:
+            errorMessage = "E-mail ou senha incorretos";
+            break;
+          case 429:
+            errorMessage = "Muitas tentativas de login. Tente novamente em alguns minutos.";
+            break;
+          case 500:
+            errorMessage = "Erro interno do servidor. Tente novamente mais tarde.";
+            break;
+          case 503:
+            errorMessage = "Serviço temporariamente indisponível. Tente novamente em alguns minutos.";
+            break;
+          default:
+            errorMessage = error.response.data?.detail || errorMessage;
+        }
+      } else if (error.request) {
+        // Erro de rede
+        errorMessage = "Erro de conexão. Verifique sua internet e tente novamente.";
+        errorTitle = "Erro de Conexão";
+      } else if (error.code === 'NETWORK_ERROR') {
+        errorMessage = "Erro de rede. Verifique sua conexão.";
+        errorTitle = "Erro de Rede";
+      } else if (error.message.includes('timeout')) {
+        errorMessage = "Tempo limite excedido. Tente novamente.";
+        errorTitle = "Timeout";
+      }
+
       toast({
         variant: "destructive",
-        title: "Erro no login",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        title: errorTitle,
+        description: errorMessage,
       });
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Determina o status de validação do email baseado no estado atual do campo.
+   * 
+   * @returns {string|null} Status do email:
+   *   - 'valid': Email válido e com domínio válido
+   *   - 'invalid': Email contém @ mas é inválido
+   *   - null: Campo não foi tocado, está vazio, ou não contém @
+   * 
+   * @description
+   * Esta função avalia o status do email considerando:
+   * - Se o campo foi tocado pelo usuário (touched.email)
+   * - Se há conteúdo no campo (formData.email)
+   * - Se o email é válido (isValidEmail)
+   * - Se o domínio é válido (hasValidDomain)
+   * - Se contém o caractere @ (para mostrar status de invalidez)
+   * 
+   * @example
+   * // Email válido
+   * getEmailStatus() // returns 'valid'
+   * 
+   * // Email inválido com @
+   * getEmailStatus() // returns 'invalid'
+   * 
+   * // Campo vazio ou não tocado
+   * getEmailStatus() // returns null
+   */
   const getEmailStatus = () => {
-    // TODO(tests): Criar um teste unitário para validar o comportamento desta função.
     if (!touched.email || !formData.email) return null;
     
     if (isValidEmail(formData.email) && hasValidDomain(formData.email)) {

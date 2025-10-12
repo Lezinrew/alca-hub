@@ -7,9 +7,9 @@ const fromEnv = typeof import.meta !== 'undefined' && import.meta.env && import.
 const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 const isCapacitor = typeof window !== 'undefined' && typeof window.Capacitor !== 'undefined';
 
-// TODO(security): Mover estes valores hardcoded para variáveis de ambiente no arquivo .env.
-const androidHost = 'http://10.0.2.2:8000';
-const localHost = 'http://localhost:8000';
+// Configurações de host para diferentes ambientes
+const androidHost = import.meta.env.VITE_ANDROID_HOST || 'http://10.0.2.2:8000';
+const localHost = import.meta.env.VITE_LOCAL_HOST || 'http://localhost:8000';
 
 export const API_URL = fromEnv || ((isAndroid && isCapacitor) ? androidHost : localHost);
 
