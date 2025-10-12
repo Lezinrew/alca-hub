@@ -7,7 +7,10 @@ from typing import Dict, Optional, Tuple
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 import os
+import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
+logger = logging.getLogger(__name__)
 
 # Configurações de segurança
 SECRET_KEY = os.getenv("SECRET_KEY", "alca-hub-secret-key-2025")
@@ -137,25 +140,44 @@ class TokenManager:
 
     def verify_access_token(self, token: str) -> Dict:
         """Verificar e decodificar token de acesso."""
-        # TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
 
             # Verificar se é um token de acesso
             if payload.get("type") != "access":
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido"
+                    status_code=status.HTTP_401_UNAUTHORIZED, 
+                    detail="Tipo de token inválido. Token de acesso esperado."
                 )
 
             return payload
 
         except jwt.ExpiredSignatureError:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado"
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Token expirado. Faça login novamente."
             )
-        except jwt.JWTError:
+        except jwt.InvalidTokenError:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido"
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Token inválido. Formato incorreto."
+            )
+        except jwt.InvalidKeyError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                detail="Erro de configuração do servidor."
+            )
+        except jwt.DecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Token malformado. Não foi possível decodificar."
+            )
+        except Exception as e:
+            # Log de erro interno não esperado
+            logger.error(f"Erro inesperado na verificação do token: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                detail="Erro interno do servidor"
             )
 
     async def create_token_pair(self, user_data: Dict) -> Tuple[str, str]:

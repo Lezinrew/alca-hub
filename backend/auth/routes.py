@@ -290,7 +290,6 @@ async def refresh_token(
     """Renovar access token usando refresh token."""
     try:
         # Renovar tokens
-        # TODO(robustness): Implementar um tratamento de erros mais específico para este bloco.
         new_access_token, new_refresh_token = await token_manager.refresh_access_token(
             refresh_data.refresh_token
         )
@@ -307,10 +306,32 @@ async def refresh_token(
         )
 
     except HTTPException as e:
-        await security_manager.log_security_event(
-            "token_refresh_failed", None, request, {"error": str(e.detail)}
-        )
+        # Log específico baseado no tipo de erro
+        error_details = {"error": str(e.detail), "status_code": e.status_code}
+        
+        if e.status_code == 401:
+            await security_manager.log_security_event(
+                "token_refresh_unauthorized", None, request, error_details
+            )
+        elif e.status_code == 400:
+            await security_manager.log_security_event(
+                "token_refresh_bad_request", None, request, error_details
+            )
+        else:
+            await security_manager.log_security_event(
+                "token_refresh_failed", None, request, error_details
+            )
         raise
+    except Exception as e:
+        # Log de erro interno não esperado
+        await security_manager.log_security_event(
+            "token_refresh_internal_error", None, request, {"error": str(e)}
+        )
+        logger.error(f"Erro interno no refresh token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro interno do servidor"
+        )
 
 
 @auth_router.post("/logout", response_model=LogoutResponse)
