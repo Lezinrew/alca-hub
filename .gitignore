@@ -120,3 +120,6 @@ cursor-settings.json
 
 # Editor settings
 .cursor-settings.json
+
+# Python virtual environment
+.venv/
