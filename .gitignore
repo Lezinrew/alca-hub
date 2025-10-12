@@ -111,3 +111,6 @@ cursor-settings.json
 
 # Python virtual environment
 .venv/
+
+# Python virtual environment
+.venv/
