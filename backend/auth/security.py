@@ -37,19 +37,33 @@ class SecurityManager:
         asyncio.create_task(self._cleanup_rate_limits())
         asyncio.create_task(self._cleanup_blacklist())
 
+    def _filter_expired_timestamps(self, timestamps: list, current_time: float) -> list:
+        """Filtrar timestamps expirados baseado na janela de tempo."""
+        return [
+            timestamp
+            for timestamp in timestamps
+            if current_time - timestamp < RATE_LIMIT_WINDOW
+        ]
+
+    def _cleanup_expired_entries(self, current_time: float) -> None:
+        """Limpar entradas expiradas do storage de rate limiting."""
+        for key in list(self.rate_limit_storage.keys()):
+            # Filtrar timestamps expirados
+            filtered_timestamps = self._filter_expired_timestamps(
+                self.rate_limit_storage[key], current_time
+            )
+            
+            # Atualizar ou remover entrada
+            if filtered_timestamps:
+                self.rate_limit_storage[key] = filtered_timestamps
+            else:
+                del self.rate_limit_storage[key]
+
     async def _cleanup_rate_limits(self):
         """Limpar dados de rate limiting expirados."""
-        # TODO(refactor): Esta função parece complexa. Avaliar se pode ser quebrada em funções menores e mais simples.
         while True:
             current_time = time.time()
-            for key in list(self.rate_limit_storage.keys()):
-                self.rate_limit_storage[key] = [
-                    timestamp
-                    for timestamp in self.rate_limit_storage[key]
-                    if current_time - timestamp < RATE_LIMIT_WINDOW
-                ]
-                if not self.rate_limit_storage[key]:
-                    del self.rate_limit_storage[key]
+            self._cleanup_expired_entries(current_time)
             await asyncio.sleep(RATE_LIMIT_WINDOW)
 
     async def _cleanup_blacklist(self):

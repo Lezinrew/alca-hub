@@ -76,13 +76,36 @@ class LogoutResponse(BaseModel):
 
 # Dependências
 async def get_token_manager(db: AsyncIOMotorDatabase = Depends()) -> TokenManager:
-    """Obter instância do gerenciador de tokens."""
-    # TODO(refactor): Adicionar docstring explicando o que esta função faz, seus parâmetros e o que retorna.
+    """
+    Dependency injection para TokenManager.
+    
+    Args:
+        db (AsyncIOMotorDatabase): Instância do banco de dados MongoDB.
+        
+    Returns:
+        TokenManager: Instância do gerenciador de tokens JWT.
+        
+    Note:
+        Esta função é usada como dependency no FastAPI para injeção
+        automática do TokenManager nas rotas que precisam dele.
+    """
     return TokenManager(db)
 
 
 async def get_security_manager(db: AsyncIOMotorDatabase = Depends()) -> SecurityManager:
-    """Obter instância do gerenciador de segurança."""
+    """
+    Dependency injection para SecurityManager.
+    
+    Args:
+        db (AsyncIOMotorDatabase): Instância do banco de dados MongoDB.
+        
+    Returns:
+        SecurityManager: Instância do gerenciador de segurança e rate limiting.
+        
+    Note:
+        Esta função é usada como dependency no FastAPI para injeção
+        automática do SecurityManager nas rotas que precisam dele.
+    """
     return SecurityManager(db)
 
 
