@@ -105,3 +105,9 @@ restart_*.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Editor/User settings
+cursor-settings.json
+
+# Python virtual environment
+.venv/
