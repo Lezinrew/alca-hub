@@ -3160,7 +3160,19 @@ app.add_middleware(
 )
 
 # Include the router in the main app
+# Incluir rotas de autenticação
 app.include_router(api_router)
+
+# Incluir novas funcionalidades
+from notifications.routes import notification_router
+from chat.routes import chat_router
+from reviews.routes import review_router
+from analytics.routes import analytics_router
+
+app.include_router(notification_router)
+app.include_router(chat_router)
+app.include_router(review_router)
+app.include_router(analytics_router)
 
 # Configure logging
 logging.basicConfig(
