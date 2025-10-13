@@ -231,10 +231,10 @@ const PaymentMethods = ({ user, onUpdate }) => {
                 Adicionar
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby="add-payment-method-description">
               <DialogHeader>
                 <DialogTitle>Adicionar Método de Pagamento</DialogTitle>
-                <DialogDescription>
+                <DialogDescription id="add-payment-method-description">
                   Adicione uma nova forma de pagamento para facilitar suas compras.
                 </DialogDescription>
               </DialogHeader>

@@ -99,17 +99,38 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
     if (isDateAvailable(date)) {
       setSelectedDate(date);
       setSelectedTime(null); // Reset time when date changes
+      // Scroll suave para a seção de horários
+      setTimeout(() => {
+        const timeSection = document.querySelector('[data-time-section]');
+        if (timeSection) {
+          timeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
     }
   };
 
   // Selecionar horário
   const handleTimeClick = (time) => {
     setSelectedTime(time);
+    // Scroll suave para a seção de pacotes
+    setTimeout(() => {
+      const packageSection = document.querySelector('[data-package-section]');
+      if (packageSection) {
+        packageSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   // Selecionar pacote
   const handlePackageSelect = (pkg) => {
     setSelectedPackage(pkg);
+    // Scroll suave para o resumo
+    setTimeout(() => {
+      const summarySection = document.querySelector('[data-summary-section]');
+      if (summarySection) {
+        summarySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
   };
 
   // Confirmar agendamento
@@ -159,9 +180,9 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">Agendar Serviço</h2>
@@ -179,7 +200,7 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="p-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Coluna 1: Calendário */}
@@ -236,7 +257,7 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
               
               {/* Horários */}
               {selectedDate && (
-                <div>
+                <div data-time-section>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
                     Horários para {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}
                   </h3>
@@ -261,7 +282,7 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
               )}
 
               {/* Pacotes */}
-              <div>
+              <div data-package-section>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Escolha o Pacote</h3>
                 <div className="space-y-3">
                   {professionalData.pricing.packages.map((pkg, index) => (
@@ -293,7 +314,7 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
 
               {/* Resumo */}
               {selectedDate && selectedTime && selectedPackage && (
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-blue-50 rounded-lg p-4" data-summary-section>
                   <h3 className="text-lg font-semibold text-blue-800 mb-3">Resumo do Agendamento</h3>
                   <div className="space-y-2 text-sm text-gray-700">
                     <p><strong>Data:</strong> {format(selectedDate, 'dd/MM/yyyy', { locale: ptBR })}</p>
@@ -312,21 +333,32 @@ const DatePicker = ({ onDateSelect, onClose, professional }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between">
+        {/* Footer - Sempre visível */}
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between flex-shrink-0 border-t border-gray-200">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
           >
             Cancelar
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedDate || !selectedTime || !selectedPackage}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            Confirmar Agendamento
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Indicador de progresso */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className={`w-2 h-2 rounded-full ${selectedDate ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <span>Data</span>
+              <div className={`w-2 h-2 rounded-full ${selectedTime ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <span>Horário</span>
+              <div className={`w-2 h-2 rounded-full ${selectedPackage ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+              <span>Pacote</span>
+            </div>
+            <button
+              onClick={handleConfirm}
+              disabled={!selectedDate || !selectedTime || !selectedPackage}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-semibold"
+            >
+              {selectedDate && selectedTime && selectedPackage ? 'Confirmar Agendamento' : 'Selecione todas as opções'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

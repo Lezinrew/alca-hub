@@ -135,9 +135,12 @@ const UserManager = () => {
             <DialogTrigger asChild>
               <Button>Adicionar Usuário</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby="new-user-description">
               <DialogHeader>
                 <DialogTitle>Novo Usuário</DialogTitle>
+                <p id="new-user-description" className="text-sm text-gray-600">
+                  Preencha os dados para criar um novo usuário
+                </p>
               </DialogHeader>
               <form onSubmit={createUser} className="space-y-3">
                 <div>

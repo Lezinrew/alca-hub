@@ -85,9 +85,12 @@ const ServiceManager = () => {
             <DialogTrigger asChild>
               <Button>Novo Serviço</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby="new-service-description">
               <DialogHeader>
                 <DialogTitle>Novo Serviço</DialogTitle>
+                <p id="new-service-description" className="text-sm text-gray-600">
+                  Preencha os dados para criar um novo serviço
+                </p>
               </DialogHeader>
               <form onSubmit={createService} className="space-y-3">
                 <div>

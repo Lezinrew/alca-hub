@@ -19,6 +19,8 @@ import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { SERVICE_CATEGORIES_DATA } from "./components/ServiceCategories";
 import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map, MessageCircle } from "lucide-react";
+import NotificationCenter from "./components/NotificationCenter";
+import ChatWidget from "./components/ChatWidget";
 import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
@@ -251,18 +253,15 @@ const ProtectedRoute = ({ children, allowedTypes = [] }) => {
 };
 
 // Profile Content Wrapper
-const ProfileContentWrapper = () => {
+const ProfileContentWrapper = React.memo(() => {
   const { user, logout } = useAuth();
   
-  console.log('🔍 ProfileContentWrapper: user:', user);
-  console.log('🔍 ProfileContentWrapper: logout function:', logout);
-  
-  const handleUpdate = () => {
+  const handleUpdate = React.useCallback(() => {
     // Handle profile update
-  };
+  }, []);
 
   return <ProfileContent user={user} onUpdate={handleUpdate} onLogout={logout} />;
-};
+});
 
 // Payment Methods Wrapper
 const PaymentMethodsWrapper = () => {
@@ -308,7 +307,7 @@ const PaymentProcessWrapper = () => {
           horario: "14:00"
         });
       } catch (error) {
-        console.error('Erro ao buscar agendamento:', error);
+        // Erro ao buscar agendamento
       } finally {
         setLoading(false);
       }
@@ -318,7 +317,7 @@ const PaymentProcessWrapper = () => {
   }, [bookingId]);
 
   const handlePaymentSuccess = (paymentData) => {
-    console.log('Pagamento aprovado:', paymentData);
+    // Pagamento aprovado
     navigate('/dashboard/agendamentos');
   };
 
@@ -897,7 +896,7 @@ const Dashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      // Erro ao carregar dados
       // Não mostrar toast de erro para dados mock
     }
   };
@@ -1139,10 +1138,10 @@ const BookServiceDialog = ({ service, onSuccess }) => {
       <DialogTrigger asChild>
         <Button className="w-full">Agendar Serviço</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby="booking-description">
         <DialogHeader>
           <DialogTitle>Agendar: {service.nome}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="booking-description">
             Preencha os dados para fazer seu agendamento
           </DialogDescription>
         </DialogHeader>
@@ -1234,7 +1233,6 @@ const CreateServiceDialog = ({ onSuccess }) => {
       };
 
       // Mock service creation
-      console.log('Serviço criado:', serviceData);
       
       toast({
         title: "Serviço criado!",
@@ -1273,10 +1271,10 @@ const CreateServiceDialog = ({ onSuccess }) => {
           Novo Serviço
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="create-service-description">
         <DialogHeader>
           <DialogTitle>Criar Novo Serviço</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="create-service-description">
             Preencha os dados do seu serviço
           </DialogDescription>
         </DialogHeader>
@@ -1660,13 +1658,13 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby="payment-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Pagamento do Agendamento
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="payment-description">
             Valor: <span className="font-semibold text-green-600">R$ {booking.preco_total.toFixed(2)}</span>
           </DialogDescription>
         </DialogHeader>
@@ -2232,16 +2230,15 @@ const EarningsContent = ({ user }) => {
   );
 };
 
-const ProfileContent = ({ user, onUpdate, onLogout }) => {
-  console.log('🔍 ProfileContent: Props recebidas:', { user, onUpdate, onLogout });
+const ProfileContent = React.memo(({ user, onUpdate, onLogout }) => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('dados');
   const [profile, setProfile] = useState({
-    nome: user.nome || '',
-    telefone: user.telefone || '',
-    endereco: user.endereco || '',
-    foto_url: user.foto_url || '',
-    email: user.email || ''
+    nome: user?.nome || '',
+    telefone: user?.telefone || '',
+    endereco: user?.endereco || '',
+    foto_url: user?.foto_url || '',
+    email: user?.email || ''
   });
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -2544,12 +2541,8 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Minha Conta</h2>
         <Button variant="destructive" size="sm" onClick={() => {
-          console.log('🔍 ProfileContent: Botão Sair clicado');
-          console.log('🔍 ProfileContent: onLogout function:', onLogout);
           if (onLogout) {
             onLogout();
-          } else {
-            console.error('❌ ProfileContent: onLogout não está definido');
           }
         }}>
           <LogOut className="h-4 w-4 mr-2" />
@@ -2850,10 +2843,10 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
 
       {/* Modal para Adicionar Forma de Pagamento */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="add-payment-description">
           <DialogHeader>
             <DialogTitle>Adicionar Forma de Pagamento</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="add-payment-description">
               Adicione um cartão de crédito ou débito para facilitar seus pagamentos.
             </DialogDescription>
           </DialogHeader>
@@ -2947,10 +2940,10 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
             <DialogTrigger asChild>
               <Button variant="destructive">Apagar minha conta</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby="delete-account-description">
               <DialogHeader>
                 <DialogTitle>Tem certeza que deseja excluir de forma permanente a conta?</DialogTitle>
-                <DialogDescription>Essa ação desativará sua conta. Você poderá entrar em contato para reativação.</DialogDescription>
+                <DialogDescription id="delete-account-description">Essa ação desativará sua conta. Você poderá entrar em contato para reativação.</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline">Cancelar</Button>
@@ -2976,7 +2969,7 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
       </Card>
     </div>
   );
-};
+});
 
 function AppContent() {
   const { user, needsProfileSelection, finishProfileSelection } = useAuth();
@@ -3047,6 +3040,9 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
+      {/* Componentes globais */}
+      <NotificationCenter />
+      <ChatWidget />
     </AuthProvider>
   );
 }

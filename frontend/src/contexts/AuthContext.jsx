@@ -33,15 +33,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      console.log('🔍 AuthContext: Tentando login com:', { email, password });
-      console.log('🔍 AuthContext: URL da API:', `${API}/auth/login`);
-      
       const response = await axios.post(`${API}/auth/login`, {
         email,
         password
       });
-      
-      console.log('✅ AuthContext: Resposta do servidor:', response.data);
 
       if (response.data.access_token) {
         const { access_token, user } = response.data;
@@ -65,24 +60,15 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Resposta inválida do servidor' };
       }
     } catch (error) {
-      console.error('❌ AuthContext: Erro no login:', error);
-      console.error('❌ AuthContext: Error response:', error.response);
-      console.error('❌ AuthContext: Error message:', error.message);
-      
       if (error.response?.data?.detail) {
-        console.log('❌ AuthContext: Erro específico do servidor:', error.response.data.detail);
         return { success: false, error: error.response.data.detail };
       } else if (error.response?.status === 401) {
-        console.log('❌ AuthContext: Erro 401 - Credenciais inválidas');
         return { success: false, error: 'E-mail ou senha incorretos' };
       } else if (error.response?.status === 422) {
-        console.log('❌ AuthContext: Erro 422 - Dados inválidos');
         return { success: false, error: 'Dados inválidos. Verifique o formato do e-mail.' };
       } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
-        console.log('❌ AuthContext: Erro de rede');
         return { success: false, error: 'Erro de conexão. Verifique se o backend está rodando.' };
       } else {
-        console.log('❌ AuthContext: Erro genérico');
         return { success: false, error: 'Erro de conexão. Tente novamente.' };
       }
     }
@@ -90,12 +76,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      console.log('🔍 AuthContext: Tentando registro com:', userData);
-      console.log('🔍 AuthContext: URL da API:', `${API}/auth/register`);
-      
       const response = await axios.post(`${API}/auth/register`, userData);
-      
-      console.log('✅ AuthContext: Resposta do servidor:', response.data);
 
       if (response.data.user) {
         const { user } = response.data;
@@ -108,21 +89,13 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Resposta inválida do servidor' };
       }
     } catch (error) {
-      console.error('❌ AuthContext: Erro no registro:', error);
-      console.error('❌ AuthContext: Error response:', error.response);
-      console.error('❌ AuthContext: Error message:', error.message);
-      
       if (error.response?.data?.detail) {
-        console.log('❌ AuthContext: Erro específico do servidor:', error.response.data.detail);
         return { success: false, error: error.response.data.detail };
       } else if (error.response?.status === 400) {
-        console.log('❌ AuthContext: Erro 400 - Dados inválidos');
         return { success: false, error: 'Dados inválidos. Verifique os campos preenchidos.' };
       } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
-        console.log('❌ AuthContext: Erro de rede');
         return { success: false, error: 'Erro de conexão. Verifique se o backend está rodando.' };
       } else {
-        console.log('❌ AuthContext: Erro genérico');
         return { success: false, error: 'Erro de conexão. Tente novamente.' };
       }
     }
@@ -134,13 +107,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    console.log('🔍 AuthContext: Função logout chamada');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
     setNeedsProfileSelection(false);
-    console.log('✅ AuthContext: Logout realizado com sucesso');
   };
 
   const value = {

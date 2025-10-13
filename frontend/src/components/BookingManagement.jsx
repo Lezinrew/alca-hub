@@ -226,12 +226,15 @@ const BookingManagement = ({ user }) => {
 
   const BookingDetails = ({ booking, onClose }) => (
     <Dialog open={showDetails} onOpenChange={setShowDetails}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="booking-details-description">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5" />
             <span>Detalhes do Agendamento</span>
           </DialogTitle>
+          <p id="booking-details-description" className="text-sm text-gray-600">
+            Visualize todos os detalhes do agendamento selecionado
+          </p>
         </DialogHeader>
         
         <div className="space-y-4">

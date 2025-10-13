@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Calendar, Clock, MapPin, Star, CheckCircle, User, Phone, MessageCircle, Filter, Eye, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COMPLETED_SERVICES, getServiceStats, getServicesByCategory } from '../data/completedServices';
@@ -291,4 +291,4 @@ const ServiceHistory = () => {
   );
 };
 
-export default ServiceHistory;
+export default memo(ServiceHistory);

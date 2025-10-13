@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap } from 'lucide-react';
+import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap, CheckCircle } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import ProviderFilters from './ProviderFilters';
 
@@ -128,7 +128,7 @@ const UberStyleMap = ({ user }) => {
           loadNearbyProviders(location.lat, location.lng);
         },
         (error) => {
-          console.error('Error getting location:', error);
+          // Error getting location
           // Default to São Paulo center if location access denied
           const defaultLocation = { lat: -23.5505, lng: -46.6333 };
           setUserLocation(defaultLocation);
@@ -146,9 +146,8 @@ const UberStyleMap = ({ user }) => {
   const updateUserLocation = async (lat, lng) => {
     try {
       // Mock location update
-      console.log('Localização atualizada:', { lat, lng });
     } catch (error) {
-      console.error('Error updating location:', error);
+      // Error updating location
     }
   };
 
@@ -262,17 +261,12 @@ const UberStyleMap = ({ user }) => {
   const handleNegotiate = async (provider, service) => {
     try {
       // Mock chat conversation
-      console.log('Conversa iniciada com:', provider.provider_id);
-      console.log('Serviço:', service.id);
-      console.log('Mensagem inicial:', `Olá! Tenho interesse no seu serviço de ${service.nome}. Podemos negociar o valor?`);
-
       toast({
         title: "Conversa iniciada! 💬",
         description: `Você pode negociar diretamente com ${provider.nome}`,
       });
 
       // Here you would navigate to chat screen
-      console.log('Conversation created:', { provider: provider.provider_id, service: service.id });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -422,9 +416,41 @@ const UberStyleMap = ({ user }) => {
       </div>
 
       {/* Bottom Sheet - Provider List */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900 border-t border-gray-700 max-h-80 overflow-hidden">
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900 border-t border-gray-700 max-h-96 overflow-hidden bottom-sheet">
         <div className="p-4">
-          <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
+          {/* Handle para arrastar */}
+          <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4 cursor-pointer"></div>
+          
+          {/* Header com contador e botão de finalizar */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                {loading ? 'Buscando...' : `${providers.length} prestadores encontrados`}
+              </h3>
+              <p className="text-sm text-gray-400">Selecione um prestador para continuar</p>
+            </div>
+            {providers.length > 0 && (
+              <Button
+                onClick={() => {
+                  // Lógica para finalizar seleção
+                  if (selectedProvider) {
+                    console.log('Finalizando seleção com prestador:', selectedProvider);
+                    // Aqui você pode adicionar lógica para navegar para a próxima etapa
+                    // Por exemplo: navigate('/agendamento', { state: { provider: selectedProvider } });
+                  } else {
+                    console.log('Nenhum prestador selecionado');
+                    // Mostrar mensagem para selecionar um prestador
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+                disabled={!selectedProvider}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {selectedProvider ? 'Continuar' : 'Selecione um prestador'}
+              </Button>
+            )}
+          </div>
           
           {loading ? (
             <div className="text-center py-8">
@@ -438,13 +464,26 @@ const UberStyleMap = ({ user }) => {
               <p className="text-sm text-gray-500">Tente aumentar o raio de busca</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
+            <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
               {providers.map((provider) => (
                 provider.services.map((service) => (
                   <Card 
                     key={`${provider.provider_id}-${service.id}`}
-                    className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-                    onClick={() => setSelectedProvider({...provider, selectedService: service})}
+                    className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-all duration-200 hover:scale-[1.02]"
+                    onClick={() => {
+                      setSelectedProvider({...provider, selectedService: service});
+                      // Centralizar o item selecionado na tela
+                      setTimeout(() => {
+                        const element = document.querySelector(`[data-provider-id="${provider.provider_id}-${service.id}"]`);
+                        if (element) {
+                          element.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                          });
+                        }
+                      }, 100);
+                    }}
+                    data-provider-id={`${provider.provider_id}-${service.id}`}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
