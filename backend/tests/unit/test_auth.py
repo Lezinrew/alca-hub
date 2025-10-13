@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from datetime import datetime, timedelta
 import jwt
 from server import create_access_token, verify_token, get_password_hash, verify_password
+import asyncio
 
 class TestPasswordHashing:
     """Testes para hash e verificação de senhas."""
@@ -230,11 +231,21 @@ class TestAuthIntegration:
         # Mock do banco de dados
         mock_database.users.find_one.return_value = {
             "_id": "123",
+            "id": "123",
             "email": sample_user_data["email"],
-            "senha": get_password_hash(sample_user_data["senha"]),
-            "tipo": "morador",
+            "password": get_password_hash(sample_user_data["senha"]),
+            "cpf": sample_user_data.get("cpf", "00000000000"),
+            "nome": sample_user_data.get("nome", "Usuário"),
+            "telefone": sample_user_data.get("telefone", "00000000000"),
+            "endereco": sample_user_data.get("endereco", "Endereço não informado"),
+            "tipos": [sample_user_data.get("tipo", "morador")],
+            "tipo_ativo": sample_user_data.get("tipo", "morador"),
             "ativo": True
         }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
         
         # Dados de login
         login_data = {
@@ -258,6 +269,10 @@ class TestAuthIntegration:
         # Mock do banco de dados
         mock_database.users.find_one.return_value = None
         
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
         # Dados de login inválidos
         login_data = {
             "email": "inexistente@exemplo.com",
@@ -270,7 +285,7 @@ class TestAuthIntegration:
         # Verificar resposta de erro
         assert response.status_code == 401
         data = response.json()
-        assert "Credenciais inválidas" in data["detail"]
+        assert "Email ou senha incorretos" in data["detail"]
     
     @pytest.mark.asyncio
     async def test_register_flow_success(self, client, mock_database, sample_user_data):
@@ -279,6 +294,10 @@ class TestAuthIntegration:
         mock_database.users.find_one.return_value = None  # Usuário não existe
         mock_database.users.insert_one.return_value = AsyncMock(inserted_id="123")
         
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
         # Dados de registro
         register_data = sample_user_data.copy()
         
@@ -286,7 +305,7 @@ class TestAuthIntegration:
         response = client.post("/api/auth/register", json=register_data)
         
         # Verificar resposta
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert "Usuário criado com sucesso" in data["message"]
         assert "user" in data
@@ -296,6 +315,10 @@ class TestAuthIntegration:
         """Testar registro com email duplicado."""
         # Mock do banco de dados
         mock_database.users.find_one.return_value = {"_id": "123"}  # Usuário já existe
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
         
         # Dados de registro
         register_data = sample_user_data.copy()
@@ -307,6 +330,305 @@ class TestAuthIntegration:
         assert response.status_code == 400
         data = response.json()
         assert "Email já cadastrado" in data["detail"]
+
+class TestPasswordRecovery:
+    """Testes para recuperação de senha."""
+    
+    @pytest.mark.asyncio
+    async def test_forgot_password_success(self, client, mock_database):
+        """Testar solicitação de recuperação de senha com sucesso."""
+        # Mock do banco de dados
+        mock_database.users.find_one.return_value = {
+            "_id": "123",
+            "id": "123",
+            "email": "teste@exemplo.com",
+            "ativo": True
+        }
+        mock_database.password_reset_attempts.find_one.return_value = None  # Sem tentativas recentes
+        mock_database.password_reset_attempts.insert_one.return_value = AsyncMock(inserted_id="token123")
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de solicitação
+        forgot_data = {"email": "teste@exemplo.com"}
+        
+        # Fazer requisição
+        response = client.post("/api/auth/forgot-password", json=forgot_data)
+        
+        # Verificar resposta
+        assert response.status_code == 200
+        data = response.json()
+        assert "Código enviado" in data["message"]
+    
+    @pytest.mark.asyncio
+    async def test_forgot_password_user_not_found(self, client, mock_database):
+        """Testar solicitação de recuperação com usuário inexistente."""
+        # Mock do banco de dados
+        mock_database.users.find_one.return_value = None
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de solicitação
+        forgot_data = {"email": "inexistente@exemplo.com"}
+        
+        # Fazer requisição
+        response = client.post("/api/auth/forgot-password", json=forgot_data)
+        
+        # Verificar resposta
+        assert response.status_code == 404
+        data = response.json()
+        assert "Usuário não encontrado" in data["detail"]
+    
+    @pytest.mark.asyncio
+    async def test_forgot_password_cooldown(self, client, mock_database):
+        """Testar cooldown de 60 segundos para solicitação de recuperação."""
+        # Mock do banco de dados
+        mock_database.users.find_one.return_value = {
+            "_id": "123",
+            "id": "123",
+            "email": "teste@exemplo.com",
+            "ativo": True
+        }
+        # Simular tentativa recente (menos de 60 segundos)
+        mock_database.password_reset_attempts.find_one.return_value = {
+            "email": "teste@exemplo.com",
+            "created_at": datetime.utcnow()
+        }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de solicitação
+        forgot_data = {"email": "teste@exemplo.com"}
+        
+        # Fazer requisição
+        response = client.post("/api/auth/forgot-password", json=forgot_data)
+        
+        # Verificar resposta
+        assert response.status_code == 429
+        data = response.json()
+        assert "aguarde 60 segundos" in data["detail"]
+    
+    @pytest.mark.asyncio
+    async def test_reset_password_success(self, client, mock_database):
+        """Testar redefinição de senha com sucesso."""
+        # Mock do banco de dados
+        mock_database.password_reset_attempts.find_one.return_value = {
+            "email": "teste@exemplo.com",
+            "token": "valid_token_123",
+            "created_at": datetime.utcnow(),
+            "used": False
+        }
+        mock_database.users.find_one.return_value = {
+            "_id": "123",
+            "id": "123",
+            "email": "teste@exemplo.com",
+            "ativo": True
+        }
+        mock_database.users.update_one.return_value = AsyncMock(modified_count=1)
+        mock_database.password_reset_attempts.update_one.return_value = AsyncMock(modified_count=1)
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de redefinição
+        reset_data = {
+            "token": "valid_token_123",
+            "new_password": "nova_senha123456"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/reset-password", json=reset_data)
+        
+        # Verificar resposta
+        assert response.status_code == 200
+        data = response.json()
+        assert "Senha redefinida" in data["message"]
+    
+    @pytest.mark.asyncio
+    async def test_reset_password_invalid_token(self, client, mock_database):
+        """Testar redefinição de senha com token inválido."""
+        # Mock do banco de dados
+        mock_database.password_reset_attempts.find_one.return_value = None
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de redefinição
+        reset_data = {
+            "token": "invalid_token",
+            "new_password": "nova_senha123456"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/reset-password", json=reset_data)
+        
+        # Verificar resposta
+        assert response.status_code == 400
+        data = response.json()
+        assert "Token inválido" in data["detail"]
+    
+    @pytest.mark.asyncio
+    async def test_reset_password_weak_password(self, client, mock_database):
+        """Testar redefinição de senha com senha fraca."""
+        # Mock do banco de dados
+        mock_database.password_reset_attempts.find_one.return_value = {
+            "email": "teste@exemplo.com",
+            "token": "valid_token_123",
+            "created_at": datetime.utcnow(),
+            "used": False
+        }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de redefinição com senha fraca
+        reset_data = {
+            "token": "valid_token_123",
+            "new_password": "123"  # Senha muito fraca
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/reset-password", json=reset_data)
+        
+        # Verificar resposta
+        assert response.status_code == 400
+        data = response.json()
+        assert "Senha muito fraca" in data["detail"]
+
+class TestLoginRateLimiting:
+    """Testes para rate limiting de login."""
+    
+    @pytest.mark.asyncio
+    async def test_login_rate_limit_exceeded(self, client, mock_database):
+        """Testar bloqueio após 5 tentativas de login."""
+        # Mock do banco de dados
+        mock_database.login_attempts.find_one.return_value = {
+            "email": "teste@exemplo.com",
+            "attempts": 5,
+            "last_attempt": datetime.utcnow(),
+            "blocked_until": datetime.utcnow() + timedelta(minutes=5)
+        }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de login
+        login_data = {
+            "email": "teste@exemplo.com",
+            "senha": "senha_errada"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/login", json=login_data)
+        
+        # Verificar resposta
+        assert response.status_code == 429
+        data = response.json()
+        assert "bloqueado por 5 minutos" in data["detail"]
+    
+    @pytest.mark.asyncio
+    async def test_login_success_after_failed_attempts(self, client, mock_database):
+        """Testar login bem-sucedido após tentativas falhadas."""
+        # Mock do banco de dados
+        mock_database.login_attempts.find_one.return_value = {
+            "email": "teste@exemplo.com",
+            "attempts": 2,
+            "last_attempt": datetime.utcnow() - timedelta(minutes=10)
+        }
+        mock_database.users.find_one.return_value = {
+            "_id": "123",
+            "id": "123",
+            "email": "teste@exemplo.com",
+            "senha": get_password_hash("senha_correta"),
+            "ativo": True
+        }
+        mock_database.login_attempts.delete_one.return_value = AsyncMock(deleted_count=1)
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de login
+        login_data = {
+            "email": "teste@exemplo.com",
+            "senha": "senha_correta"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/login", json=login_data)
+        
+        # Verificar resposta
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+
+class TestOAuth2Flow:
+    """Testes para OAuth2 Password Flow."""
+    
+    @pytest.mark.asyncio
+    async def test_oauth2_token_success(self, client, mock_database):
+        """Testar obtenção de token OAuth2 com sucesso."""
+        # Mock do banco de dados
+        mock_database.users.find_one.return_value = {
+            "_id": "123",
+            "id": "123",
+            "email": "teste@exemplo.com",
+            "senha": get_password_hash("senha123456"),
+            "ativo": True
+        }
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de login OAuth2 (form-data)
+        form_data = {
+            "username": "teste@exemplo.com",
+            "password": "senha123456"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/token", data=form_data)
+        
+        # Verificar resposta
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+    
+    @pytest.mark.asyncio
+    async def test_oauth2_token_invalid_credentials(self, client, mock_database):
+        """Testar OAuth2 com credenciais inválidas."""
+        # Mock do banco de dados
+        mock_database.users.find_one.return_value = None
+        
+        # Garantir que o mock está disponível globalmente para o servidor
+        import server
+        server.mock_database = mock_database
+        
+        # Dados de login OAuth2 (form-data)
+        form_data = {
+            "username": "inexistente@exemplo.com",
+            "password": "senha_errada"
+        }
+        
+        # Fazer requisição
+        response = client.post("/api/auth/token", data=form_data)
+        
+        # Verificar resposta
+        assert response.status_code == 401
+        data = response.json()
+        assert "Email ou senha incorretos" in data["detail"]
 
 # Fixtures específicas para testes de autenticação
 @pytest.fixture

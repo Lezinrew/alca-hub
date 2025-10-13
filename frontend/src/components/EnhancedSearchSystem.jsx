@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Star, Clock, User, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PROFESSIONALS_DATA, searchProfessionals, getSearchSuggestions, SERVICE_CATEGORIES } from '../data/professionals';
+import ServiceCategoryButtons from './ServiceCategoryButtons';
 
 const EnhancedSearchSystem = ({ onSearchResults, onProfessionalSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +19,7 @@ const EnhancedSearchSystem = ({ onSearchResults, onProfessionalSelect }) => {
   
   const searchInputRef = useRef(null);
   const suggestionsRef = useRef(null);
+  const resultsRef = useRef(null);
 
   // Atualizar sugestões quando a query muda
   useEffect(() => {
@@ -185,35 +187,31 @@ const EnhancedSearchSystem = ({ onSearchResults, onProfessionalSelect }) => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Buscar por Categoria
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {SERVICE_CATEGORIES.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => {
-                    setSearchQuery(category.name);
-                    handleSearch(category.name);
-                    setShowSuggestions(false);
-                  }}
-                  className="p-4 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-md transition-all duration-200 text-center group"
-                >
-                  <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">
-                    {category.icon}
-                  </div>
-                  <div className="text-sm font-medium text-gray-900 mb-1">
-                    {category.name}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {category.description}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <ServiceCategoryButtons
+              categories={SERVICE_CATEGORIES}
+              onCategorySelect={(category) => {
+                setSearchQuery(category.name);
+                handleSearch(category.name);
+                setShowSuggestions(false);
+                
+                // Scroll automático para os resultados após um pequeno delay
+                setTimeout(() => {
+                  if (resultsRef.current) {
+                    resultsRef.current.scrollIntoView({ 
+                      behavior: 'smooth', 
+                      block: 'start' 
+                    });
+                  }
+                }, 300);
+              }}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
+            />
           </div>
         </div>
       </div>
 
       {/* Resultados da Busca */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div ref={resultsRef} className="max-w-4xl mx-auto px-4 py-6">
         {searchResults.length > 0 && (
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">

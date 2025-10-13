@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Star, Clock, DollarSign, Plus, Filter, Heart, Trash2, Edit } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import CategoryFilterButtons from './CategoryFilterButtons';
 
 const ServiceManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [favoriteServices, setFavoriteServices] = useState([]);
   const [recentServices, setRecentServices] = useState([]);
+  const servicesRef = useRef(null);
 
   // Categorias de serviços
   const categories = [
@@ -154,18 +156,23 @@ const ServiceManagement = () => {
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto">
-            {categories.map(category => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category)}
-                className="whitespace-nowrap"
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
+          <CategoryFilterButtons
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategorySelect={(category) => {
+              setSelectedCategory(category);
+              
+              // Scroll automático para os serviços após um pequeno delay
+              setTimeout(() => {
+                if (servicesRef.current) {
+                  servicesRef.current.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                  });
+                }
+              }, 300);
+            }}
+          />
         </div>
       </div>
 
@@ -282,7 +289,7 @@ const ServiceManagement = () => {
       )}
 
       {/* Todos os Serviços */}
-      <div className="mb-8">
+      <div ref={servicesRef} className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-5 h-5 text-gray-500" />
           <h2 className="text-xl font-semibold text-gray-900">

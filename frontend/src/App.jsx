@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -18,7 +18,9 @@ import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { SERVICE_CATEGORIES_DATA } from "./components/ServiceCategories";
-import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map } from "lucide-react";
+import { Calendar, Clock, User, Star, MapPin, Phone, Mail, Plus, Home, Settings, LogOut, Users, CreditCard, Zap, Map, MessageCircle } from "lucide-react";
+import NotificationCenter from "./components/NotificationCenter";
+import ChatWidget from "./components/ChatWidget";
 import { useToast } from "./hooks/use-toast";
 import { Toaster } from "./components/ui/toaster";
 import { QRCodeCanvas } from "qrcode.react";
@@ -28,6 +30,15 @@ import MobileBookingFlow from "./components/MobileBookingFlow";
 import ProfessionalAgenda from "./components/ProfessionalAgenda";
 import BookingFlow from "./components/BookingFlow";
 import PricingDisplay from "./components/PricingDisplay";
+import ChatSystem from "./components/ChatSystem";
+import BookingManagement from "./components/BookingManagement";
+import UserLocationManager from "./components/UserLocationManager";
+import ProfileSelector from "./components/ProfileSelector";
+import PaymentSystem from "./components/PaymentSystem";
+import PaymentMethods from "./components/PaymentMethods";
+import PaymentHistory from "./components/PaymentHistory";
+import LoginForm from "./components/LoginForm";
+import ModeSwitcher from "./components/ModeSwitcher";
 import AvailabilityCalendar from "./components/AvailabilityCalendar";
 import EnhancedDashboard from "./components/EnhancedDashboard";
 import ServiceManagement from "./components/ServiceManagement";
@@ -242,14 +253,105 @@ const ProtectedRoute = ({ children, allowedTypes = [] }) => {
 };
 
 // Profile Content Wrapper
-const ProfileContentWrapper = () => {
+const ProfileContentWrapper = React.memo(() => {
   const { user, logout } = useAuth();
   
-  const handleUpdate = () => {
+  const handleUpdate = React.useCallback(() => {
     // Handle profile update
-  };
+  }, []);
 
   return <ProfileContent user={user} onUpdate={handleUpdate} onLogout={logout} />;
+});
+
+// Payment Methods Wrapper
+const PaymentMethodsWrapper = () => {
+  const { user } = useAuth();
+  
+  const handleUpdate = () => {
+    // Handle payment methods update
+  };
+
+  return <PaymentMethods user={user} onUpdate={handleUpdate} />;
+};
+
+// Payment History Wrapper
+const PaymentHistoryWrapper = () => {
+  const { user } = useAuth();
+
+  return <PaymentHistory user={user} />;
+};
+
+// Payment Process Wrapper
+const PaymentProcessWrapper = () => {
+  const { bookingId } = useParams();
+  const navigate = useNavigate();
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simular busca do agendamento
+    const fetchBooking = async () => {
+      try {
+        setLoading(true);
+        // Aqui você faria uma chamada real para a API
+        // const response = await axios.get(`${API_URL}/api/bookings/${bookingId}`);
+        // setBooking(response.data);
+        
+        // Mock data para demonstração
+        setBooking({
+          id: bookingId,
+          preco_total: 150.00,
+          servico: "Reparo Elétrico",
+          prestador: "João Silva",
+          data: "2024-01-15",
+          horario: "14:00"
+        });
+      } catch (error) {
+        // Erro ao buscar agendamento
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooking();
+  }, [bookingId]);
+
+  const handlePaymentSuccess = (paymentData) => {
+    // Pagamento aprovado
+    navigate('/dashboard/agendamentos');
+  };
+
+  const handlePaymentCancel = () => {
+    navigate('/dashboard/agendamentos');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <div className="text-center py-8">
+        <h2 className="text-2xl font-bold mb-4">Agendamento não encontrado</h2>
+        <p className="text-gray-600 mb-4">O agendamento solicitado não foi encontrado.</p>
+        <Button onClick={() => navigate('/dashboard/agendamentos')}>
+          Voltar aos Agendamentos
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <PaymentSystem 
+      booking={booking}
+      onPaymentSuccess={handlePaymentSuccess}
+      onPaymentCancel={handlePaymentCancel}
+    />
+  );
 };
 
 
@@ -322,84 +424,7 @@ const ProfessionalAgendaWrapper = () => {
 
 // Components
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const result = await login(email, password);
-    
-    if (result.success) {
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao Alça Hub",
-      });
-      navigate('/dashboard');
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Erro no login",
-        description: result.error,
-      });
-    }
-    
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-indigo-900">Alça Hub</CardTitle>
-          <CardDescription>Entre na sua conta para continuar</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-            <Link to="/forgot-password" className="text-sm text-[#6366F1] hover:underline text-center">
-              Esqueceu a senha?
-            </Link>
-            <p className="text-sm text-center">
-              Não tem conta?{" "}
-              <Link to="/register" className="text-indigo-600 hover:underline">
-                Cadastre-se
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
+  return <LoginForm />;
 };
 
 // Placeholder pages to satisfy new routes if not already present
@@ -427,9 +452,11 @@ const Register = () => {
     nome: "",
     telefone: "",
     endereco: "",
-    tipo: ""
+    tipos: ["morador"], // Array de tipos selecionados
+    aceitou_termos: false
   });
   const [loading, setLoading] = useState(false);
+  const [openTerms, setOpenTerms] = useState(false);
   const { register } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -440,6 +467,34 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (formData.tipos.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Erro no cadastro",
+        description: "Selecione pelo menos um tipo de usuário",
+      });
+      return;
+    }
+    if (!formData.aceitou_termos) {
+      toast({
+        variant: "destructive",
+        title: "Termos obrigatórios",
+        description: "Você precisa aceitar os Termos de Uso para criar a conta.",
+      });
+      return;
+    }
+    // AHSW-19: Validação de senha forte (mín. 8 chars, número e símbolo)
+    const strongPwd = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!strongPwd.test(formData.password)) {
+      toast({
+        variant: "destructive",
+        title: "Senha fraca",
+        description: "A senha deve ter no mínimo 8 caracteres, incluir ao menos 1 número e 1 símbolo.",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     const result = await register(formData);
@@ -447,9 +502,9 @@ const Register = () => {
     if (result.success) {
       toast({
         title: "Cadastro realizado com sucesso!",
-        description: "Bem-vindo ao Alça Hub",
+        description: "Agora faça login para continuar",
       });
-      navigate('/dashboard');
+      navigate('/login');
     } else {
       toast({
         variant: "destructive",
@@ -524,16 +579,48 @@ const Register = () => {
               />
             </div>
             <div>
-              <Label htmlFor="tipo">Tipo de usuário</Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, tipo: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morador">Morador</SelectItem>
-                  <SelectItem value="prestador">Prestador de Serviços</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="tipos">Tipo de usuário</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="morador"
+                    checked={formData.tipos.includes("morador")}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ ...formData, tipos: [...formData.tipos, "morador"] });
+                      } else {
+                        setFormData({ ...formData, tipos: formData.tipos.filter(t => t !== "morador") });
+                      }
+                    }}
+                    className="rounded"
+                  />
+                  <Label htmlFor="morador" className="text-sm font-normal">
+                    Morador - Buscar e contratar serviços
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="prestador"
+                    checked={formData.tipos.includes("prestador")}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ ...formData, tipos: [...formData.tipos, "prestador"] });
+                      } else {
+                        setFormData({ ...formData, tipos: formData.tipos.filter(t => t !== "prestador") });
+                      }
+                    }}
+                    className="rounded"
+                  />
+                  <Label htmlFor="prestador" className="text-sm font-normal">
+                    Prestador - Oferecer serviços e gerenciar agenda
+                  </Label>
+                </div>
+                {formData.tipos.length === 0 && (
+                  <p className="text-sm text-red-600">Selecione pelo menos um tipo de usuário</p>
+                )}
+              </div>
             </div>
             <div>
               <Label htmlFor="password">Senha</Label>
@@ -545,6 +632,20 @@ const Register = () => {
                 onChange={handleChange}
                 required
               />
+            </div>
+            <div className="border-t pt-2">
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="aceitou_termos"
+                  checked={formData.aceitou_termos}
+                  onChange={(e) => setFormData({ ...formData, aceitou_termos: e.target.checked })}
+                  className="mt-1 rounded"
+                />
+                <Label htmlFor="aceitou_termos" className="text-sm font-normal">
+                  Eu li e aceito os <button type="button" className="text-indigo-600 hover:underline" onClick={() => setOpenTerms(true)}>Termos de Uso</button>.
+                </Label>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
@@ -566,16 +667,34 @@ const Register = () => {
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    toast({
-      title: "Se o email existir, enviaremos instruções",
-      description: "Verifique sua caixa de entrada",
-    });
-    navigate('/login');
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
+        email: email
+      });
+
+      toast({
+        title: "Se o email existir, enviaremos instruções",
+        description: "Verifique sua caixa de entrada",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao solicitar recuperação de senha:', error);
+      toast({
+        title: "Se o email existir, enviaremos instruções",
+        description: "Verifique sua caixa de entrada",
+      });
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -599,7 +718,137 @@ const ForgotPassword = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full">Enviar</Button>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Enviando..." : "Enviar"}
+            </Button>
+            <Link to="/login" className="text-sm text-[#6366F1] hover:underline text-center">Voltar ao login</Link>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+};
+
+const ResetPassword = () => {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "As senhas não coincidem",
+      });
+      return;
+    }
+
+    // AHSW-19: Validação de senha forte (mín. 8 chars, número e símbolo)
+    const strongPwd = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!strongPwd.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Senha fraca",
+        description: "A senha deve ter no mínimo 8 caracteres, incluir ao menos 1 número e 1 símbolo.",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
+        token: token,
+        new_password: newPassword
+      });
+
+      toast({
+        title: "Senha redefinida com sucesso!",
+        description: "Agora você pode fazer login com sua nova senha",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao redefinir senha",
+        description: error.response?.data?.detail || "Token inválido ou expirado",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-indigo-900">Token inválido</CardTitle>
+            <CardDescription>O link de recuperação é inválido ou expirado</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Link to="/login" className="w-full text-center text-[#6366F1] hover:underline">
+              Voltar ao login
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-indigo-900">Redefinir senha</CardTitle>
+          <CardDescription>Digite sua nova senha</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="new-password">Nova senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirmar senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Redefinindo..." : "Redefinir senha"}
+            </Button>
             <Link to="/login" className="text-sm text-[#6366F1] hover:underline text-center">Voltar ao login</Link>
           </CardFooter>
         </form>
@@ -609,7 +858,7 @@ const ForgotPassword = () => {
 };
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const { tab } = useParams();
   const [services, setServices] = useState([]);
@@ -617,6 +866,8 @@ const Dashboard = () => {
   const [myServices, setMyServices] = useState([]);
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('inicio');
+  const [showChat, setShowChat] = useState(false);
+  const [showLocationManager, setShowLocationManager] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -645,7 +896,7 @@ const Dashboard = () => {
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      // Erro ao carregar dados
       // Não mostrar toast de erro para dados mock
     }
   };
@@ -677,18 +928,25 @@ const Dashboard = () => {
 
   // Bottom navigation menu items
   const getMenuItems = () => {
-    if (user.tipo === 'morador') {
+    const currentType = user.tipo_ativo || user.tipo;
+    
+    if (currentType === 'morador') {
       return [
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'servicos', label: 'Serviços', icon: Users },
         { id: 'agendamentos', label: 'Meus Pedidos', icon: Calendar },
+        { id: 'chat', label: 'Chat', icon: MessageCircle },
+        { id: 'localizacao', label: 'Localização', icon: MapPin },
+        { id: 'pagamento', label: 'Pagamentos', icon: CreditCard },
         { id: 'conta', label: 'Conta', icon: User }
       ];
-    } else if (user.tipo === 'prestador') {
+    } else if (currentType === 'prestador') {
       return [
         { id: 'inicio', label: 'Início', icon: Home },
         { id: 'meus-servicos', label: 'Serviços', icon: Settings },
         { id: 'agendamentos', label: 'Agendamentos', icon: Calendar },
+        { id: 'chat', label: 'Chat', icon: MessageCircle },
+        { id: 'localizacao', label: 'Localização', icon: MapPin },
         { id: 'faturamento', label: 'Faturamento', icon: CreditCard },
         { id: 'conta', label: 'Conta', icon: User }
       ];
@@ -703,10 +961,12 @@ const Dashboard = () => {
     const next = tab && allowed.has(tab) ? tab : 'inicio';
     setActiveTab(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, user.tipo]);
+  }, [tab, user.tipo_ativo, user.tipo]);
 
   const renderContent = () => {
-    if (user.tipo === 'admin') {
+    const currentType = user.tipo_ativo || user.tipo;
+    
+    if (currentType === 'admin') {
       return <AdminDashboard />;
     }
     switch (activeTab) {
@@ -717,7 +977,17 @@ const Dashboard = () => {
       case 'meus-servicos':
         return <MyServicesContent services={myServices} onUpdate={loadData} />;
       case 'agendamentos':
-        return <BookingsContent bookings={bookings} onUpdate={loadData} />;
+        return <BookingManagement user={user} />;
+      case 'chat':
+        return <ChatSystem user={user} onClose={() => setActiveTab('inicio')} />;
+      case 'localizacao':
+        return <UserLocationManager user={user} onLocationUpdate={(location) => {
+          // Update user location in context
+          const updatedUser = { ...user, ...location };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }} />;
+      case 'pagamento':
+        return <PaymentMethods user={user} onUpdate={loadData} />;
       case 'faturamento':
         return <EarningsContent user={user} />;
       case 'conta':
@@ -868,10 +1138,10 @@ const BookServiceDialog = ({ service, onSuccess }) => {
       <DialogTrigger asChild>
         <Button className="w-full">Agendar Serviço</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby="booking-description">
         <DialogHeader>
           <DialogTitle>Agendar: {service.nome}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="booking-description">
             Preencha os dados para fazer seu agendamento
           </DialogDescription>
         </DialogHeader>
@@ -963,7 +1233,6 @@ const CreateServiceDialog = ({ onSuccess }) => {
       };
 
       // Mock service creation
-      console.log('Serviço criado:', serviceData);
       
       toast({
         title: "Serviço criado!",
@@ -1002,10 +1271,10 @@ const CreateServiceDialog = ({ onSuccess }) => {
           Novo Serviço
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="create-service-description">
         <DialogHeader>
           <DialogTitle>Criar Novo Serviço</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="create-service-description">
             Preencha os dados do seu serviço
           </DialogDescription>
         </DialogHeader>
@@ -1389,13 +1658,13 @@ const PaymentModal = ({ booking, onClose, onSuccess }) => {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-describedby="payment-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Pagamento do Agendamento
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="payment-description">
             Valor: <span className="font-semibold text-green-600">R$ {booking.preco_total.toFixed(2)}</span>
           </DialogDescription>
         </DialogHeader>
@@ -1961,16 +2230,175 @@ const EarningsContent = ({ user }) => {
   );
 };
 
-const ProfileContent = ({ user, onUpdate, onLogout }) => {
+const ProfileContent = React.memo(({ user, onUpdate, onLogout }) => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('dados');
   const [profile, setProfile] = useState({
-    nome: user.nome || '',
-    telefone: user.telefone,
-    endereco: user.endereco,
-    bio: user.bio || '',
-    foto_url: user.foto_url || ''
+    nome: user?.nome || '',
+    telefone: user?.telefone || '',
+    endereco: user?.endereco || '',
+    foto_url: user?.foto_url || '',
+    email: user?.email || ''
   });
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Função para upload de foto
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Por favor, selecione uma imagem válida (JPEG, PNG, GIF ou WebP)');
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('A imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Converter arquivo para base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const photoUrl = e.target.result;
+        
+        try {
+          // Salvar no servidor
+          const response = await axios.put(
+            `${API_URL}/api/profile`,
+            { foto_url: photoUrl },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (response.data) {
+            // Atualizar estado local
+            setProfile(prev => ({ ...prev, foto_url: photoUrl }));
+            
+            // Atualizar usuário no contexto
+            const updatedUser = { ...user, foto_url: photoUrl };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            
+            toast({
+              title: "Foto atualizada!",
+              description: "Sua foto de perfil foi salva com sucesso.",
+            });
+            
+            console.log('📸 Foto salva no servidor:', photoUrl);
+          }
+        } catch (error) {
+          console.error('❌ Erro ao salvar foto no servidor:', error);
+          toast({
+            variant: "destructive",
+            title: "Erro ao salvar foto",
+            description: "Não foi possível salvar a foto. Tente novamente.",
+          });
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('❌ Erro ao carregar foto:', error);
+      setIsUploading(false);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar foto",
+        description: "Erro ao processar a imagem. Tente novamente.",
+      });
+    }
+  };
+
+  // Função para alternar modo de usuário
+  const handleModeSwitch = async (newMode) => {
+    if (!user.tipos || user.tipos.length <= 1) return;
+    
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/auth/switch-mode`,
+        { tipo_ativo: newMode },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data) {
+        // Atualizar dados do usuário no localStorage
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+        toast({
+          title: "Modo alterado!",
+          description: `Agora você está no modo ${newMode === 'morador' ? 'Morador' : newMode === 'prestador' ? 'Prestador' : 'Administrador'}`,
+        });
+        
+        // Recarregar a página para aplicar as mudanças
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Erro ao alterar modo:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao alterar modo",
+        description: error.response?.data?.detail || "Tente novamente",
+      });
+    }
+  };
+
+  // Função para remover foto
+  const handleRemovePhoto = async () => {
+    try {
+      // Salvar no servidor (remover foto)
+      const response = await axios.put(
+        `${API_URL}/api/profile`,
+        { foto_url: null },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data) {
+        // Atualizar estado local
+        setProfile(prev => ({ ...prev, foto_url: '' }));
+        
+        // Atualizar usuário no contexto
+        const updatedUser = { ...user, foto_url: null };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        toast({
+          title: "Foto removida!",
+          description: "Sua foto de perfil foi removida com sucesso.",
+        });
+        
+        console.log('📸 Foto removida do servidor');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao remover foto do servidor:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao remover foto",
+        description: "Não foi possível remover a foto. Tente novamente.",
+      });
+    }
+  };
+
   const [settings, setSettings] = useState({
     geolocalizacao_ativa: user.geolocalizacao_ativa || false,
     notificacoes_ativadas: user.notificacoes_ativadas !== false,
@@ -1990,8 +2418,12 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
 
   const handleProfileUpdate = async () => {
     try {
-      // Mock profile update
-      console.log('Perfil atualizado:', profile);
+      await axios.put(`${API}/profile`, {
+        nome: profile.nome,
+        telefone: profile.telefone,
+        endereco: profile.endereco,
+        foto_url: profile.foto_url,
+      });
       toast({
         title: "Perfil atualizado!",
         description: "Suas informações foram salvas com sucesso.",
@@ -2022,19 +2454,28 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
         return;
       }
 
-      // Mock save payment method
-      const paymentMethod = {
-        id: Date.now().toString(),
-        type: newPaymentMethod.type,
-        cardNumber: newPaymentMethod.cardNumber.replace(/\s/g, ''),
-        expiryDate: newPaymentMethod.expiryDate,
-        cardholderName: newPaymentMethod.cardholderName,
-        bankName: newPaymentMethod.bankName,
-        lastFour: newPaymentMethod.cardNumber.slice(-4),
+      const payload = {
+        tipo: 'cartao',
+        nome: newPaymentMethod.cardholderName,
+        dados: {
+          card_last_four: newPaymentMethod.cardNumber.slice(-4),
+          expiry: newPaymentMethod.expiryDate,
+          bank: newPaymentMethod.bankName
+        }
+      };
+      const res = await axios.post(`${API}/profile/payment-methods`, payload);
+      const pm = res.data.payment_method;
+      const mapped = {
+        id: pm.id,
+        type: 'card',
+        cardNumber: `**** **** **** ${pm.dados.card_last_four}`,
+        lastFour: pm.dados.card_last_four,
+        expiryDate: pm.dados.expiry,
+        cardholderName: payload.nome,
+        bankName: pm.dados.bank,
         isDefault: paymentMethods.length === 0
       };
-
-      setPaymentMethods(prev => [...prev, paymentMethod]);
+      setPaymentMethods(prev => [...prev, mapped]);
       setNewPaymentMethod({
         type: 'card',
         cardNumber: '',
@@ -2058,18 +2499,30 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     }
   };
 
-  const handleRemovePaymentMethod = (id) => {
-    setPaymentMethods(prev => prev.filter(method => method.id !== id));
-    toast({
-      title: "Forma de pagamento removida",
-      description: "A forma de pagamento foi removida com sucesso.",
-    });
+  const handleRemovePaymentMethod = async (id) => {
+    try {
+      await axios.delete(`${API}/profile/payment-methods/${id}`);
+      setPaymentMethods(prev => prev.filter(method => method.id !== id));
+      toast({
+        title: "Forma de pagamento removida",
+        description: "A forma de pagamento foi removida com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao remover',
+        description: error.response?.data?.detail || 'Tente novamente',
+      });
+    }
   };
 
   const handleSettingsUpdate = async () => {
     try {
-      // Mock settings update
-      console.log('Configurações atualizadas:', settings);
+      await axios.put(`${API}/settings`, {
+        geolocalizacao_ativa: settings.geolocalizacao_ativa,
+        notificacoes_ativadas: settings.notificacoes_ativadas,
+        privacidade_perfil: settings.privacidade_perfil,
+      });
       toast({
         title: "Configurações salvas!",
         description: "Suas preferências foram atualizadas.",
@@ -2087,7 +2540,11 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Minha Conta</h2>
-        <Button variant="outline" onClick={onLogout}>
+        <Button variant="destructive" size="sm" onClick={() => {
+          if (onLogout) {
+            onLogout();
+          }
+        }}>
           <LogOut className="h-4 w-4 mr-2" />
           Sair
         </Button>
@@ -2098,17 +2555,89 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">
-                  {user.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
-                </span>
+              <div className="relative group">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                  {profile.foto_url ? (
+                    <img 
+                      src={profile.foto_url} 
+                      alt="Foto do perfil" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold text-white">
+                      {user.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Overlay de upload */}
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                     onClick={() => fileInputRef.current?.click()}>
+                  <div className="text-center text-white">
+                    <svg className="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs">Alterar</span>
+                  </div>
+                </div>
+                
+                {/* Input de arquivo oculto */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                
+                {/* Loading indicator */}
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
+                  </div>
+                )}
               </div>
+              
+              {/* Botão para remover foto */}
+              {profile.foto_url && (
+                <button
+                  onClick={handleRemovePhoto}
+                  className="ml-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                  title="Remover foto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
               <div>
                 <h3 className="text-xl font-bold">{user.nome ? user.nome.split(' ')[0] : 'Usuário'}</h3>
                 <p className="text-gray-600">{user.email}</p>
-                <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
-                  {user.tipo === 'morador' ? '🏠 Morador' : '🔧 Prestador'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {user.tipos && user.tipos.length > 1 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {user.tipos.map((tipo, index) => (
+                        <Button
+                          key={tipo}
+                          variant={user.tipo_ativo === tipo ? 'default' : 'outline'}
+                          size="sm"
+                          className="text-xs h-6 px-2"
+                          onClick={() => handleModeSwitch(tipo)}
+                        >
+                          {tipo === 'morador' ? '🏠' : tipo === 'prestador' ? '🔧' : '👑'} {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant={user.tipo === 'morador' ? 'default' : 'secondary'}>
+                      {user.tipo === 'morador' ? '🏠 Morador' : user.tipo === 'prestador' ? '🔧 Prestador' : '👑 Admin'}
+                    </Badge>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    {user.tipos && user.tipos.length > 1 ? 'Clique para alternar' : 'Clique na foto para alterar'}
+                  </span>
+                </div>
               </div>
             </div>
             <Button 
@@ -2169,6 +2698,10 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" value={profile.email} disabled />
+                </div>
+                <div>
                   <Label htmlFor="telefone">Telefone</Label>
                   <Input
                     id="telefone"
@@ -2182,15 +2715,6 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
                     id="endereco"
                     value={profile.endereco}
                     onChange={(e) => setProfile({ ...profile, endereco: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bio">Biografia</Label>
-                  <Textarea
-                    id="bio"
-                    value={profile.bio}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    placeholder="Conte um pouco sobre você..."
                   />
                 </div>
                 <Button onClick={handleProfileUpdate}>Salvar Alterações</Button>
@@ -2319,10 +2843,10 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
 
       {/* Modal para Adicionar Forma de Pagamento */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="add-payment-description">
           <DialogHeader>
             <DialogTitle>Adicionar Forma de Pagamento</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="add-payment-description">
               Adicione um cartão de crédito ou débito para facilitar seus pagamentos.
             </DialogDescription>
           </DialogHeader>
@@ -2405,20 +2929,65 @@ const ProfileContent = ({ user, onUpdate, onLogout }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Delete account */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Excluir conta</CardTitle>
+          <CardDescription>Excluir permanentemente sua conta (delete lógico)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive">Apagar minha conta</Button>
+            </DialogTrigger>
+            <DialogContent aria-describedby="delete-account-description">
+              <DialogHeader>
+                <DialogTitle>Tem certeza que deseja excluir de forma permanente a conta?</DialogTitle>
+                <DialogDescription id="delete-account-description">Essa ação desativará sua conta. Você poderá entrar em contato para reativação.</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline">Cancelar</Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await axios.delete(`${API}/account`);
+                      toast({ title: 'Conta excluída', description: 'Sua conta foi desativada.' });
+                      onLogout();
+                      navigate('/login');
+                    } catch (error) {
+                      toast({ variant: 'destructive', title: 'Erro ao excluir', description: error.response?.data?.detail || 'Tente novamente' });
+                    }
+                  }}
+                >
+                  Confirmar exclusão
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
     </div>
   );
-};
+});
 
-function App() {
+function AppContent() {
+  const { user, needsProfileSelection, finishProfileSelection } = useAuth();
+
+  // Se o usuário precisa selecionar perfil, mostrar ProfileSelector
+  if (needsProfileSelection && user) {
+    return <ProfileSelector user={user} onProfileSelected={finishProfileSelection} />;
+  }
+
   return (
-    <AuthProvider>
-      <div className="App">
-        <BrowserRouter>
-          <Routes>
+    <div className="App">
+      <BrowserRouter>
+        <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/conta" element={<ProtectedRoute><ProfileContent user={{}} onUpdate={() => {}} onLogout={() => {}} /></ProtectedRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/conta" element={<ProtectedRoute><ProfileContentWrapper /></ProtectedRoute>} />
             <Route path="/pagamento" element={<ProtectedRoute><EarningsPlaceholder /></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><SecurityPlaceholder /></ProtectedRoute>} />
             <Route path="/mapa" element={<ProtectedRoute><Mapa /></ProtectedRoute>} />
@@ -2456,12 +3025,24 @@ function App() {
             <Route path="/meus-pedidos" element={<ProtectedRoute><PageWrapper><MyOrders /></PageWrapper></ProtectedRoute>} />
             <Route path="/avaliar" element={<ProtectedRoute><PageWrapper><ReviewScreen /></PageWrapper></ProtectedRoute>} />
             <Route path="/conta" element={<ProtectedRoute><PageWrapper><ProfileContentWrapper /></PageWrapper></ProtectedRoute>} />
-            <Route path="/pagamento" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Pagamento</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento" element={<ProtectedRoute><PageWrapper><PaymentMethodsWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento/historico" element={<ProtectedRoute><PageWrapper><PaymentHistoryWrapper /></PageWrapper></ProtectedRoute>} />
+            <Route path="/pagamento/processar/:bookingId" element={<ProtectedRoute><PageWrapper><PaymentProcessWrapper /></PageWrapper></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Segurança</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </div>
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+      {/* Componentes globais */}
+      <NotificationCenter />
+      <ChatWidget />
     </AuthProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Calendar, Clock, MapPin, Star, CheckCircle, XCircle, AlertCircle, User, Phone, MessageCircle, Eye, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
@@ -29,14 +29,11 @@ const MyOrders = () => {
       
       // Carregar dados do localStorage
       const savedOrders = JSON.parse(localStorage.getItem('userOrders') || '[]');
-      console.log('Saved orders from localStorage:', savedOrders);
       
       // Combinar com dados simulados (evitar duplicatas)
       const existingIds = savedOrders.map(order => order.id);
       const newSimulatedOrders = ORDERS_DATA.filter(order => !existingIds.includes(order.id));
       const allOrders = [...savedOrders, ...newSimulatedOrders];
-      
-      console.log('All orders combined:', allOrders);
       
       // Salvar todos os pedidos no localStorage
       localStorage.setItem('userOrders', JSON.stringify(allOrders));
@@ -46,8 +43,6 @@ const MyOrders = () => {
       
       const filteredOrders = getOrdersByStatus(allOrders, filter);
       setOrders(filteredOrders);
-      
-      console.log('Filtered orders:', filteredOrders);
       
       setLoading(false);
     };
@@ -555,4 +550,4 @@ const MyOrders = () => {
   );
 };
 
-export default MyOrders;
+export default memo(MyOrders);

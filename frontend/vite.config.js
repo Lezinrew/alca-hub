@@ -7,7 +7,25 @@ export default defineConfig({
     port: 5173,
     host: true
   },
-  build: { sourcemap: true },
-  // Se você usava aliases no CRACO, habilite:
-  // resolve: { alias: { '@': '/src' } }
+  build: { 
+    sourcemap: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separar vendor libraries em chunks menores
+          'react-vendor': ['react', 'react-dom'],
+          'router': ['react-router-dom'],
+          'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'utils': ['axios', 'leaflet'],
+          'animations': ['framer-motion']
+        }
+      }
+    }
+  },
+  resolve: { 
+    alias: { 
+      '@': '/src' 
+    } 
+  }
 })

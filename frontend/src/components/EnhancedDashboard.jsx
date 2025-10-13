@@ -142,14 +142,14 @@ const EnhancedDashboard = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
               activeTab === tab.id
-                ? 'bg-white text-primary-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-indigo-600 shadow-md border border-indigo-200'
+                : 'text-gray-600 hover:text-indigo-700 hover:bg-indigo-50'
             }`}
           >
             <tab.icon className="w-4 h-4" />
-            <span>{tab.label}</span>
+            <span className="font-medium">{tab.label}</span>
           </button>
         ))}
       </div>

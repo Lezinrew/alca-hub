@@ -60,7 +60,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: alca-hub-frontend
     restart: unless-stopped
     environment:

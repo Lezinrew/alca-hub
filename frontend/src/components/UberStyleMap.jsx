@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap } from 'lucide-react';
+import { MapPin, Clock, Star, MessageCircle, Filter, Navigation, Users, Zap, CheckCircle } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import ProviderFilters from './ProviderFilters';
 
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -101,9 +102,13 @@ const UberStyleMap = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     categoria: '',
-    radius: 10
+    radius: 10,
+    especialidade: '',
+    disponibilidade: 'todos'
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
   const mapRef = useRef();
   const { toast } = useToast();
 
@@ -123,7 +128,7 @@ const UberStyleMap = ({ user }) => {
           loadNearbyProviders(location.lat, location.lng);
         },
         (error) => {
-          console.error('Error getting location:', error);
+          // Error getting location
           // Default to São Paulo center if location access denied
           const defaultLocation = { lat: -23.5505, lng: -46.6333 };
           setUserLocation(defaultLocation);
@@ -141,9 +146,8 @@ const UberStyleMap = ({ user }) => {
   const updateUserLocation = async (lat, lng) => {
     try {
       // Mock location update
-      console.log('Localização atualizada:', { lat, lng });
     } catch (error) {
-      console.error('Error updating location:', error);
+      // Error updating location
     }
   };
 
@@ -151,17 +155,42 @@ const UberStyleMap = ({ user }) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        latitude: lat,
-        longitude: lng,
-        radius_km: filters.radius
+        latitude: String(lat),
+        longitude: String(lng),
+        radius_km: String(filters.radius)
       });
-      
-      if (filters.categoria) {
-        params.append('categoria', filters.categoria);
-      }
+      if (filters.categoria) params.append('categoria', filters.categoria);
 
-      // Mock providers data
-      setProviders([]);
+      const apiBase = import.meta.env.VITE_API_URL || (window.location.port === '3000' ? 'http://localhost:8000' : '');
+      const resp = await fetch(`${apiBase}/api/providers/nearby?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!resp.ok) throw new Error('Falha ao buscar prestadores');
+      const data = await resp.json();
+      let list = Array.isArray(data.providers) ? data.providers : [];
+      
+      // Aplicar filtros de especialidade e disponibilidade no frontend
+      if (filters.especialidade) {
+        list = list.filter(provider => 
+          provider.especialidades && 
+          provider.especialidades.some(esp => 
+            esp.toLowerCase().includes(filters.especialidade.toLowerCase())
+          )
+        );
+      }
+      
+      if (filters.disponibilidade !== 'todos') {
+        list = list.filter(provider => {
+          if (filters.disponibilidade === 'online') {
+            return provider.disponivel === true;
+          } else if (filters.disponibilidade === 'indisponivel') {
+            return provider.disponivel === false;
+          }
+          return true;
+        });
+      }
+      
+      setProviders(list);
     } catch (error) {
       console.error('Error loading providers:', error);
       toast({
@@ -173,6 +202,56 @@ const UberStyleMap = ({ user }) => {
     setLoading(false);
   };
 
+  // AHSW-21: Geocodificação por endereço (Nominatim / OpenStreetMap)
+  const geocodeAddress = async () => {
+    if (!address || address.trim().length < 3) {
+      toast({
+        variant: "destructive",
+        title: "Endereço inválido",
+        description: "Informe um endereço com pelo menos 3 caracteres.",
+      });
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const q = encodeURIComponent(address.trim());
+      const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`;
+      const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = await resp.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Endereço não encontrado",
+          description: "Tente ser mais específico ou use um ponto de referência.",
+        });
+        setGeocoding(false);
+        return;
+      }
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      const newLoc = { lat, lng };
+      setUserLocation(newLoc);
+      if (mapRef.current) {
+        const map = mapRef.current;
+        if (map && map.setView) {
+          map.setView([lat, lng], 14);
+        } else if (map._leaflet_id && map._map) {
+          // compatibility when ref points to internal object
+          map._map.setView([lat, lng], 14);
+        }
+      }
+      await loadNearbyProviders(lat, lng);
+    } catch (error) {
+      console.error('Erro ao geocodificar:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao buscar endereço",
+        description: "Verifique sua conexão e tente novamente.",
+      });
+    }
+    setGeocoding(false);
+  };
+
   const handleFilterChange = () => {
     if (userLocation) {
       loadNearbyProviders(userLocation.lat, userLocation.lng);
@@ -182,17 +261,12 @@ const UberStyleMap = ({ user }) => {
   const handleNegotiate = async (provider, service) => {
     try {
       // Mock chat conversation
-      console.log('Conversa iniciada com:', provider.provider_id);
-      console.log('Serviço:', service.id);
-      console.log('Mensagem inicial:', `Olá! Tenho interesse no seu serviço de ${service.nome}. Podemos negociar o valor?`);
-
       toast({
         title: "Conversa iniciada! 💬",
         description: `Você pode negociar diretamente com ${provider.nome}`,
       });
 
       // Here you would navigate to chat screen
-      console.log('Conversation created:', { provider: provider.provider_id, service: service.id });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -311,63 +385,72 @@ const UberStyleMap = ({ user }) => {
             <h1 className="text-xl font-bold">🗺️ Encontrar Serviços</h1>
             <p className="text-sm text-gray-300">{providers.length} prestadores próximos</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Filtros
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Busca por endereço */}
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Digite um endereço para centralizar"
+              className="w-64 bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={geocodeAddress}
+              disabled={geocoding}
+              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+            >
+              {geocoding ? 'Buscando...' : 'Centralizar'}
+            </Button>
+            <ProviderFilters
+              filters={filters}
+              setFilters={setFilters}
+              onApplyFilters={handleFilterChange}
+              loading={loading}
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+            />
+          </div>
         </div>
 
-        {/* Filters */}
-        {showFilters && (
-          <Card className="mt-4 bg-gray-800 border-gray-600">
-            <CardContent className="p-4 space-y-4">
-              <div>
-                <label className="text-sm text-gray-300 mb-2 block">Categoria</label>
-                <Select value={filters.categoria} onValueChange={(value) => setFilters({...filters, categoria: value})}>
-                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                    <SelectValue placeholder="Todas as categorias" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-gray-600">
-                    <SelectItem value="">Todas as categorias</SelectItem>
-                    <SelectItem value="limpeza">🧹 Limpeza</SelectItem>
-                    <SelectItem value="manutencao">🔧 Manutenção</SelectItem>
-                    <SelectItem value="jardinagem">🌱 Jardinagem</SelectItem>
-                    <SelectItem value="pintura">🎨 Pintura</SelectItem>
-                    <SelectItem value="eletrica">⚡ Elétrica</SelectItem>
-                    <SelectItem value="encanamento">🚰 Encanamento</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm text-gray-300 mb-2 block">Raio de busca: {filters.radius}km</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={filters.radius}
-                  onChange={(e) => setFilters({...filters, radius: parseInt(e.target.value)})}
-                  className="w-full"
-                />
-              </div>
-              
-              <Button onClick={handleFilterChange} className="w-full" disabled={loading}>
-                {loading ? 'Buscando...' : 'Aplicar Filtros'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Bottom Sheet - Provider List */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900 border-t border-gray-700 max-h-80 overflow-hidden">
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gray-900 border-t border-gray-700 max-h-96 overflow-hidden bottom-sheet">
         <div className="p-4">
-          <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4"></div>
+          {/* Handle para arrastar */}
+          <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4 cursor-pointer"></div>
+          
+          {/* Header com contador e botão de finalizar */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                {loading ? 'Buscando...' : `${providers.length} prestadores encontrados`}
+              </h3>
+              <p className="text-sm text-gray-400">Selecione um prestador para continuar</p>
+            </div>
+            {providers.length > 0 && (
+              <Button
+                onClick={() => {
+                  // Lógica para finalizar seleção
+                  if (selectedProvider) {
+                    console.log('Finalizando seleção com prestador:', selectedProvider);
+                    // Aqui você pode adicionar lógica para navegar para a próxima etapa
+                    // Por exemplo: navigate('/agendamento', { state: { provider: selectedProvider } });
+                  } else {
+                    console.log('Nenhum prestador selecionado');
+                    // Mostrar mensagem para selecionar um prestador
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+                disabled={!selectedProvider}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                {selectedProvider ? 'Continuar' : 'Selecione um prestador'}
+              </Button>
+            )}
+          </div>
           
           {loading ? (
             <div className="text-center py-8">
@@ -381,13 +464,26 @@ const UberStyleMap = ({ user }) => {
               <p className="text-sm text-gray-500">Tente aumentar o raio de busca</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-64 overflow-y-auto">
+            <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
               {providers.map((provider) => (
                 provider.services.map((service) => (
                   <Card 
                     key={`${provider.provider_id}-${service.id}`}
-                    className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-                    onClick={() => setSelectedProvider({...provider, selectedService: service})}
+                    className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-all duration-200 hover:scale-[1.02]"
+                    onClick={() => {
+                      setSelectedProvider({...provider, selectedService: service});
+                      // Centralizar o item selecionado na tela
+                      setTimeout(() => {
+                        const element = document.querySelector(`[data-provider-id="${provider.provider_id}-${service.id}"]`);
+                        if (element) {
+                          element.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                          });
+                        }
+                      }, 100);
+                    }}
+                    data-provider-id={`${provider.provider_id}-${service.id}`}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -396,6 +492,20 @@ const UberStyleMap = ({ user }) => {
                           <div>
                             <h3 className="font-semibold text-white">{provider.nome}</h3>
                             <p className="text-sm text-gray-300">{service.nome}</p>
+                            {provider.especialidades && provider.especialidades.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {provider.especialidades.slice(0, 3).map((esp, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs bg-blue-900 text-blue-200">
+                                    {esp}
+                                  </Badge>
+                                ))}
+                                {provider.especialidades.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
+                                    +{provider.especialidades.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                             <div className="flex items-center space-x-4 mt-1">
                               <span className="text-sm text-green-400 flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
@@ -404,6 +514,14 @@ const UberStyleMap = ({ user }) => {
                               <span className="text-sm text-yellow-400 flex items-center">
                                 <Star className="h-3 w-3 mr-1" />
                                 {service.media_avaliacoes > 0 ? service.media_avaliacoes : 'Novo'}
+                              </span>
+                              <span className={`text-sm flex items-center ${
+                                provider.disponivel ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                <div className={`w-2 h-2 rounded-full mr-1 ${
+                                  provider.disponivel ? 'bg-green-400' : 'bg-red-400'
+                                }`}></div>
+                                {provider.disponivel ? 'Online' : 'Indisponível'}
                               </span>
                             </div>
                           </div>

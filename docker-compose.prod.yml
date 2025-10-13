@@ -1,0 +1,198 @@
+# Docker Compose para Alça Hub - Produção Otimizada
+# Versão otimizada para deploy em produção
+
+version: '3.8'
+
+services:
+  # Banco de dados MongoDB - Produção
+  mongo:
+    image: mongo:7.0
+    container_name: alca-hub-mongo-prod
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_prod:/data/db
+      - mongo_config_prod:/data/configdb
+      - ./backend/seeds:/docker-entrypoint-initdb.d:ro
+    networks:
+      - alca-hub-prod-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Backend FastAPI - Produção
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - ENV=production
+    container_name: alca-hub-backend-prod
+    restart: always
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=${MONGO_DATABASE}
+      - MERCADO_PAGO_ACCESS_TOKEN=${MERCADO_PAGO_ACCESS_TOKEN}
+      - MERCADO_PAGO_PUBLIC_KEY=${MERCADO_PAGO_PUBLIC_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - DEBUG=0
+      - ENV=production
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    networks:
+      - alca-hub-prod-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Frontend React - Produção
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: alca-hub-frontend-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+    ports:
+      - "3000:80"
+    networks:
+      - alca-hub-prod-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Nginx Reverse Proxy - Produção
+  nginx:
+    image: nginx:alpine
+    container_name: alca-hub-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs_prod:/var/log/nginx
+    networks:
+      - alca-hub-prod-network
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Redis Cache - Produção
+  redis:
+    image: redis:7-alpine
+    container_name: alca-hub-redis-prod
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - alca-hub-prod-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+# Volumes nomeados para persistência - Produção
+volumes:
+  mongo_data_prod:
+    driver: local
+  mongo_config_prod:
+    driver: local
+  backend_logs_prod:
+    driver: local
+  backend_uploads_prod:
+    driver: local
+  nginx_logs_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+
+# Network isolada para comunicação entre serviços - Produção
+networks:
+  alca-hub-prod-network:
+    driver: bridge
+    name: alca-hub-prod-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

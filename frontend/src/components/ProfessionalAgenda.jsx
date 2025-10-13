@@ -1,6 +1,6 @@
 // Agenda do Profissional - Alça Hub
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Calendar, Clock, DollarSign, Star, MapPin, User, Phone, MessageCircle, CheckCircle, XCircle } from 'lucide-react'
+import { Calendar, Clock, DollarSign, Star, MapPin, User, Phone, MessageCircle, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import DatePicker from './DatePicker'
 
@@ -244,10 +244,18 @@ const ProfessionalAgenda = ({ professional, service = null, onBookingSelect, onC
   }
 
   const handleDatePickerSelect = (bookingData) => {
-    console.log('Agendamento selecionado:', bookingData)
+    // Agendamento selecionado
+    // Sincronizar os dados selecionados
+    if (bookingData.date) {
+      setSelectedDate(bookingData.date)
+    }
+    if (bookingData.time) {
+      setSelectedTime(bookingData.time)
+    }
+    if (bookingData.package) {
+      setSelectedPackage(bookingData.package)
+    }
     setShowDatePicker(false)
-    // Aqui você pode processar o agendamento
-    // Por exemplo, navegar para uma página de confirmação
   }
 
   const handleCloseDatePicker = () => {
@@ -437,37 +445,68 @@ const ProfessionalAgenda = ({ professional, service = null, onBookingSelect, onC
                 </div>
               )}
 
-              {/* Botão Principal para Abrir Calendário */}
-              <div className="mt-8">
-                <button
-                  onClick={() => setShowDatePicker(true)}
-                  className="w-full bg-blue-600 text-white py-4 rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold flex items-center justify-center gap-2"
-                >
-                  <Calendar className="w-5 h-5" />
-                  Selecione a Data
-                </button>
-              </div>
+              {/* Botão Principal para Abrir Calendário - Só mostra se não tiver data selecionada */}
+              {!selectedDate && (
+                <div className="mt-8">
+                  <button
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full bg-blue-600 text-white py-4 rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Calendar className="w-5 h-5" />
+                    Selecione a Data
+                  </button>
+                </div>
+              )}
+
+              {/* Botão para Abrir Calendário quando já tem pacote mas não tem data */}
+              {selectedDate && !selectedTime && (selectedPackage || selectedDuration) && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowDatePicker(true)}
+                    className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Selecionar Horário
+                  </button>
+                </div>
+              )}
 
               {/* Resumo e Botão Continuar */}
-              {selectedDate && selectedTime && selectedDuration && (
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Resumo do Agendamento</h3>
+              {(selectedPackage || selectedDuration) && (
+                <div className={`rounded-lg p-4 ${
+                  selectedDate && selectedTime && (selectedPackage || selectedDuration) 
+                    ? 'bg-green-50 border-2 border-green-200' 
+                    : 'bg-blue-50 border-2 border-blue-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">Resumo do Agendamento</h3>
+                    {selectedDate && selectedTime && (selectedPackage || selectedDuration) && (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Completo</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Data:</span>
-                      <p className="font-medium">
-                        {new Date(selectedDate).toLocaleDateString('pt-BR', { 
-                          weekday: 'long', 
-                          day: '2-digit', 
-                          month: '2-digit', 
-                          year: 'numeric' 
-                        })}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Horário:</span>
-                      <p className="font-medium">{selectedTime}</p>
-                    </div>
+                    {selectedDate && (
+                      <div>
+                        <span className="text-gray-600">Data:</span>
+                        <p className="font-medium">
+                          {new Date(selectedDate).toLocaleDateString('pt-BR', { 
+                            weekday: 'long', 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    {selectedTime && (
+                      <div>
+                        <span className="text-gray-600">Horário:</span>
+                        <p className="font-medium">{selectedTime}</p>
+                      </div>
+                    )}
                     <div>
                       <span className="text-gray-600">Pacote:</span>
                       <p className="font-medium">{selectedPackage?.name || 'Serviço Personalizado'}</p>
@@ -476,6 +515,24 @@ const ProfessionalAgenda = ({ professional, service = null, onBookingSelect, onC
                       <span className="text-gray-600">Duração:</span>
                       <p className="font-medium">{selectedDuration} horas</p>
                     </div>
+                    {!selectedDate && (
+                      <div className="md:col-span-3">
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            <strong>⚠️ Atenção:</strong> Selecione uma data para continuar.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedDate && !selectedTime && (
+                      <div className="md:col-span-3">
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>📅 Data selecionada:</strong> Agora escolha um horário.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4 pt-4 border-t border-green-200">
                     <div className="flex items-center justify-between">
@@ -485,20 +542,47 @@ const ProfessionalAgenda = ({ professional, service = null, onBookingSelect, onC
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      onClick={handleContinue}
-                      className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
-                    >
-                      Continuar para Confirmação
-                    </button>
-                    <button
-                      onClick={handleConfirmBooking}
-                      className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      Finalizar Agendamento
-                    </button>
+                  
+                  {/* Botões de Ação - Sempre visíveis quando pacote selecionado */}
+                  <div className="mt-4">
+                    {!selectedDate && !selectedTime && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          <strong>Próximo passo:</strong> Selecione a data e horário para continuar com o agendamento.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedDate && selectedTime && (selectedPackage || selectedDuration) && (
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✅ Tudo selecionado!</strong> Você pode finalizar o agendamento.
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-3">
+                      {selectedDate && selectedTime ? (
+                        // Se data e horário estão selecionados, mostrar botão de finalizar
+                        <button
+                          onClick={handleConfirmBooking}
+                          className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                          Finalizar Agendamento
+                        </button>
+                      ) : (
+                        // Se apenas pacote está selecionado, mostrar botão para continuar
+                        <button
+                          onClick={handleContinue}
+                          disabled={!selectedPackage && !selectedDuration}
+                          className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
+                        >
+                          {selectedDate && selectedTime ? 'Finalizar Agendamento' : 'Continuar para Data/Horário'}
+                          <ArrowRight className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
