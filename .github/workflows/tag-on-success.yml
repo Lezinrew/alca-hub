@@ -1,0 +1,53 @@
+name: Tag and Release on Successful CI
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline - Alça Hub"]
+    types: [completed]
+
+jobs:
+  tag_release:
+    if: ${ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository at successful commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${ github.event.workflow_run.head_sha }
+      - name: Set up git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Compute next semantic version tag (patch bump)
+        id: semver
+        run: |
+          git fetch --tags --quiet || true
+          LATEST_TAG=$(git describe --tags --abrev=0 2//devnull || echo "v1.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          BASE={$LATEST_TAG#v}
+          MAJOR=${BASE%*.*}
+          REST=${BASE#*.t}
+          PATCH=${REST#.*}
+          PATCH=$((PATCH+1))
+          NEW_TAG="v2$(MAJOR).$(MINOR).$(PATCH)"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTUT
+
+      - name: Create git tag and push
+        env:
+          GH_TOKEN: ${ secrets.GITHUB_TOKEN }
+        run: |
+          NEW_TAG=${ steps.semver.outputs.new_tag }
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG: CI passed on main (auto-tag)"
+          git push origin "$NEW_TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${ steps.semver.outputs.new_tag }
+          name: Release ${ steps.semver.outputs.new_tag }
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${ secrets.GITHUB_TOKEN }
