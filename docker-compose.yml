@@ -34,6 +34,7 @@ services:
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - DB_NAME=${MONGO_DATABASE:-alca_hub}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
       - MERCADO_PAGO_ACCESS_TOKEN=${MERCADO_PAGO_ACCESS_TOKEN}
       - MERCADO_PAGO_PUBLIC_KEY=${MERCADO_PAGO_PUBLIC_KEY}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}

@@ -13,10 +13,18 @@ export const isValidEmail = (email) => {
     return false;
   }
 
-  // Regex mais robusta para validação de e-mail
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  const trimmed = email.trim();
+
+  // Exigir ao menos um ponto no domínio para evitar aceitar 'test@gm'
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  if (!domain.includes('.')) return false;
+
+  // Regex para formato geral
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   
-  return emailRegex.test(email.trim());
+  return emailRegex.test(trimmed);
 };
 
 /**
@@ -122,10 +130,23 @@ export const getEmailSuggestions = (email) => {
   const commonDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
   
   commonDomains.forEach(commonDomain => {
-    if (domain && commonDomain.startsWith(domain.toLowerCase())) {
+    const dl = domain ? domain.toLowerCase() : '';
+    if (!dl) return;
+    if (commonDomain.startsWith(dl) || commonDomain.includes(dl)) {
       suggestions.push(`${localPart}@${commonDomain}`);
     }
   });
 
-  return suggestions.slice(0, 3); // Máximo 3 sugestões
+  // Se não encontrou sugestões por prefixo, adicionar sugestões baseadas em domínios comuns
+  if (suggestions.length === 0 && domain && domain.length > 0) {
+    commonDomains.forEach(commonDomain => {
+      if (commonDomain.includes(domain.toLowerCase()) || domain.toLowerCase().includes(commonDomain.substring(0, 2))) {
+        suggestions.push(`${localPart}@${commonDomain}`);
+      }
+    });
+  }
+
+  // Remover duplicadas e limitar
+  const unique = Array.from(new Set(suggestions));
+  return unique.slice(0, 3); // Máximo 3 sugestões
 };

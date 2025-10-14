@@ -1,10 +1,9 @@
 # Rotas de Avaliações - Alça Hub
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Optional
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import List, Optional, Dict, Any
 import logging
 
+from auth.dependencies import get_db, get_current_user_payload
 from reviews.models import (
     ReviewCreate,
     ReviewResponse,
@@ -21,22 +20,21 @@ logger = logging.getLogger(__name__)
 # Router para avaliações
 review_router = APIRouter(prefix="/reviews", tags=["reviews"])
 
-# Dependências
-security = HTTPBearer()
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(request: Request) -> Dict[str, Any]:
     """Obter usuário atual do token."""
-    return {"user_id": "mock_user_id"}
+    return get_current_user_payload(request)
 
 
 @review_router.post("/", response_model=dict)
 async def create_review(
+    request: Request,
     review_data: ReviewCreate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends()
 ):
     """Criar nova avaliação."""
     try:
+        db = get_db(request)
         review_data.reviewer_id = current_user["user_id"]
         
         # Salvar avaliação no banco
@@ -72,16 +70,17 @@ async def create_review(
 
 @review_router.get("/", response_model=List[ReviewResponse])
 async def get_reviews(
+    request: Request,
     reviewee_id: Optional[str] = None,
     service_id: Optional[str] = None,
     rating_min: Optional[int] = None,
     rating_max: Optional[int] = None,
     limit: int = 20,
     offset: int = 0,
-    db: AsyncIOMotorDatabase = Depends()
 ):
     """Obter avaliações."""
     try:
+        db = get_db(request)
         query = {"status": "approved"}
         
         if reviewee_id:
@@ -127,10 +126,11 @@ async def get_reviews(
 @review_router.get("/stats/{user_id}", response_model=ReviewStats)
 async def get_review_stats(
     user_id: str,
-    db: AsyncIOMotorDatabase = Depends()
+    request: Request,
 ):
     """Obter estatísticas de avaliações do usuário."""
     try:
+        db = get_db(request)
         # Total de avaliações
         total_reviews = await db.reviews.count_documents({
             "reviewee_id": user_id,
@@ -208,12 +208,13 @@ async def get_review_stats(
 @review_router.patch("/{review_id}", response_model=dict)
 async def update_review(
     review_id: str,
+    request: Request,
     update_data: ReviewUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends()
 ):
     """Atualizar avaliação."""
     try:
+        db = get_db(request)
         # Verificar se o usuário é o autor da avaliação
         review = await db.reviews.find_one({
             "_id": review_id,
@@ -258,11 +259,12 @@ async def update_review(
 @review_router.delete("/{review_id}")
 async def delete_review(
     review_id: str,
+    request: Request,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends()
 ):
     """Deletar avaliação."""
     try:
+        db = get_db(request)
         # Verificar se o usuário é o autor da avaliação
         review = await db.reviews.find_one({
             "_id": review_id,
@@ -290,12 +292,13 @@ async def delete_review(
 @review_router.post("/{review_id}/report")
 async def report_review(
     review_id: str,
+    request: Request,
     report_data: ReviewReport,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends()
 ):
     """Reportar avaliação."""
     try:
+        db = get_db(request)
         report_doc = {
             "review_id": review_id,
             "reporter_id": current_user["user_id"],

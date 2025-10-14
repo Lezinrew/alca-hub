@@ -1,10 +1,9 @@
 # Rotas de Chat - Alça Hub
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Optional
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from fastapi import APIRouter, Depends, HTTPException, Request, status, WebSocket, WebSocketDisconnect
+from typing import List, Dict, Any
 import logging
 
+from auth.dependencies import get_db, get_current_user_payload
 from chat.models import (
     MessageCreate,
     MessageResponse,
@@ -21,17 +20,16 @@ logger = logging.getLogger(__name__)
 # Router para chat
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Dependências
-security = HTTPBearer()
 
-async def get_chat_manager(db: AsyncIOMotorDatabase = Depends()) -> ChatManager:
+async def get_chat_manager(request: Request) -> ChatManager:
     """Obter instância do gerenciador de chat."""
+    db = get_db(request)
     return ChatManager(db)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Obter usuário atual do token."""
-    # Implementar extração do usuário do token JWT
-    return {"user_id": "mock_user_id"}
+
+async def get_current_user(request: Request) -> Dict[str, Any]:
+    """Recupera usuário autenticado a partir do middleware JWT."""
+    return get_current_user_payload(request)
 
 
 @chat_router.post("/rooms", response_model=dict)
@@ -202,9 +200,10 @@ async def get_chat_stats(
 async def websocket_endpoint(
     websocket: WebSocket,
     user_id: str,
-    manager: ChatManager = Depends(get_chat_manager)
 ):
     """Endpoint WebSocket para chat em tempo real."""
+    manager = ChatManager(get_db(websocket))
+    # Garantir que websocket tenha contexto de usuário quando autenticação foi feita
     await manager.connect(websocket, user_id)
     
     try:

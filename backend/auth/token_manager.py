@@ -12,8 +12,17 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
 
+
+def _require_env(var_name: str) -> str:
+    """Recupera variável de ambiente obrigatória."""
+    value = os.getenv(var_name)
+    if not value:
+        raise RuntimeError(f"Variável de ambiente {var_name} não configurada.")
+    return value
+
+
 # Configurações de segurança
-SECRET_KEY = os.getenv("SECRET_KEY", "alca-hub-secret-key-2025")
+SECRET_KEY = _require_env("SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 15 minutos
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7 dias

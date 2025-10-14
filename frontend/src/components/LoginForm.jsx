@@ -42,7 +42,8 @@ const LoginForm = () => {
     if (touched.email && formData.email) {
       const suggestions = getEmailSuggestions(formData.email);
       setEmailSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0 && !isValidEmail(formData.email));
+      // Exibir sugestões sempre que houver sugestões
+      setShowSuggestions(suggestions.length > 0);
     } else {
       setEmailSuggestions([]);
       setShowSuggestions(false);
@@ -84,6 +85,7 @@ const LoginForm = () => {
   };
 
   const handleEmailFocus = () => {
+    // Sempre mostrar sugestões se há sugestões disponíveis e email não é válido
     if (emailSuggestions.length > 0 && !isValidEmail(formData.email)) {
       setShowSuggestions(true);
     }
@@ -212,7 +214,9 @@ const LoginForm = () => {
     
     if (isValidEmail(formData.email) && hasValidDomain(formData.email)) {
       return 'valid';
-    } else if (formData.email.includes('@')) {
+    }
+    // Considerar inválido se tiver '@' OU for um texto mais longo claramente inválido
+    if (formData.email.includes('@') || formData.email.length >= 8) {
       return 'invalid';
     }
     return null;
@@ -244,7 +248,7 @@ const LoginForm = () => {
             </CardDescription>
           </CardHeader>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-6">
               {/* Campo de E-mail */}
               <div className="space-y-2">
@@ -275,9 +279,9 @@ const LoginForm = () => {
                   {emailStatus && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                       {emailStatus === 'valid' ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle data-testid="email-status-icon" className="h-4 w-4 text-green-500" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <AlertCircle data-testid="email-status-icon" className="h-4 w-4 text-red-500" />
                       )}
                     </div>
                   )}

@@ -42,14 +42,14 @@ const ProviderFilters = ({
 
   const clearFilters = () => {
     setFilters({
-      categoria: '',
+      categoria: 'todas',
       radius: 10,
-      especialidade: '',
+      especialidade: 'todas',
       disponibilidade: 'todos'
     });
   };
 
-  const hasActiveFilters = filters.categoria || filters.especialidade || filters.disponibilidade !== 'todos';
+  const hasActiveFilters = filters.categoria !== 'todas' || filters.especialidade !== 'todas' || filters.disponibilidade !== 'todos';
 
   return (
     <>
@@ -64,7 +64,7 @@ const ProviderFilters = ({
         Filtros
         {hasActiveFilters && (
           <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-            {[filters.categoria, filters.especialidade, filters.disponibilidade !== 'todos' ? 1 : 0].filter(Boolean).length}
+            {[filters.categoria !== 'todas' ? 1 : 0, filters.especialidade !== 'todas' ? 1 : 0, filters.disponibilidade !== 'todos' ? 1 : 0].filter(Boolean).length}
           </Badge>
         )}
       </Button>
@@ -107,7 +107,7 @@ const ProviderFilters = ({
                   <SelectValue placeholder="Todas as categorias" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-700 border-gray-600">
-                  <SelectItem value="">Todas as categorias</SelectItem>
+                  <SelectItem value="todas">Todas as categorias</SelectItem>
                   {categorias.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       {cat.label}
@@ -125,7 +125,7 @@ const ProviderFilters = ({
                   <SelectValue placeholder="Todas as especialidades" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-700 border-gray-600">
-                  <SelectItem value="">Todas as especialidades</SelectItem>
+                  <SelectItem value="todas">Todas as especialidades</SelectItem>
                   {especialidades.map((esp) => (
                     <SelectItem key={esp.value} value={esp.value}>
                       {esp.label}
@@ -180,21 +180,21 @@ const ProviderFilters = ({
               <div className="pt-2 border-t border-gray-700">
                 <p className="text-sm text-gray-300 mb-2">Filtros ativos:</p>
                 <div className="flex flex-wrap gap-2">
-                  {filters.categoria && (
+                  {filters.categoria !== 'todas' && (
                     <Badge variant="secondary" className="bg-blue-900 text-blue-200">
                       {categorias.find(c => c.value === filters.categoria)?.label}
                       <X 
                         className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setFilters({...filters, categoria: ''})}
+                        onClick={() => setFilters({...filters, categoria: 'todas'})}
                       />
                     </Badge>
                   )}
-                  {filters.especialidade && (
+                  {filters.especialidade !== 'todas' && (
                     <Badge variant="secondary" className="bg-green-900 text-green-200">
                       {especialidades.find(e => e.value === filters.especialidade)?.label}
                       <X 
                         className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setFilters({...filters, especialidade: ''})}
+                        onClick={() => setFilters({...filters, especialidade: 'todas'})}
                       />
                     </Badge>
                   )}

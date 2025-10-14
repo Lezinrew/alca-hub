@@ -8,6 +8,8 @@ import os
 from unittest.mock import AsyncMock, MagicMock
 from faker import Faker
 
+os.environ.setdefault("SECRET_KEY", "test-secret")
+
 # Importar a aplicação
 import sys
 

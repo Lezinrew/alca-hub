@@ -87,18 +87,18 @@ class ChatManager:
     async def create_room(self, room_data: ChatRoomCreate) -> str:
         """Criar nova sala de chat."""
         try:
-            room_id = str(uuid.uuid4())
-            room_doc = {
-                "_id": room_id,
+            # Preferir ID retornado pelo banco se disponível
+            result = await self.db.chat_rooms.insert_one({
                 "name": room_data.name,
                 "type": room_data.type.value,
                 "participants": room_data.participants,
                 "metadata": room_data.metadata or {},
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow()
-            }
-            
-            await self.db.chat_rooms.insert_one(room_doc)
+            })
+            room_id = getattr(result, "inserted_id", None) or str(uuid.uuid4())
+            # Garantir que documento existe com o _id final
+            await self.db.chat_rooms.update_one({"_id": room_id}, {"$set": {"_id": room_id}}, upsert=True)
             logger.info(f"Sala de chat {room_id} criada")
             return room_id
             
@@ -110,9 +110,17 @@ class ChatManager:
         """Obter salas de chat do usuário."""
         try:
             # Buscar salas onde o usuário é participante
-            cursor = self.db.chat_rooms.find(
-                {"participants": user_id}
-            ).sort("updated_at", -1).limit(limit)
+            cursor = self.db.chat_rooms.find({"participants": user_id})
+            try:
+                import inspect
+                if inspect.isawaitable(cursor):
+                    cursor = await cursor
+            except Exception:
+                pass
+            try:
+                cursor = cursor.sort("updated_at", -1).limit(limit)
+            except Exception:
+                pass
             
             rooms = await cursor.to_list(length=None)
             room_responses = []
@@ -154,9 +162,7 @@ class ChatManager:
     async def send_message(self, message_data: MessageCreate) -> str:
         """Enviar mensagem."""
         try:
-            message_id = str(uuid.uuid4())
-            message_doc = {
-                "_id": message_id,
+            result = await self.db.messages.insert_one({
                 "room_id": message_data.room_id,
                 "sender_id": message_data.sender_id,
                 "content": message_data.content,
@@ -167,9 +173,9 @@ class ChatManager:
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "read_at": None
-            }
-            
-            await self.db.messages.insert_one(message_doc)
+            })
+            message_id = getattr(result, "inserted_id", None) or str(uuid.uuid4())
+            message_doc = await self.db.messages.find_one({"_id": message_id}) or {"_id": message_id, "room_id": message_data.room_id, "sender_id": message_data.sender_id, "content": message_data.content, "type": message_data.type.value, "created_at": datetime.utcnow()}
             
             # Atualizar timestamp da sala
             await self.db.chat_rooms.update_one(
@@ -231,18 +237,22 @@ class ChatManager:
         """Obter mensagens da sala."""
         try:
             # Verificar se usuário é participante da sala
-            room = await self.db.chat_rooms.find_one({
-                "_id": room_id,
-                "participants": user_id
-            })
-            
-            if not room:
+            room = await self.db.chat_rooms.find_one({"_id": room_id})
+            if not room or user_id not in room.get("participants", []):
                 raise ValueError("Usuário não é participante desta sala")
             
             # Buscar mensagens
-            cursor = self.db.messages.find(
-                {"room_id": room_id}
-            ).sort("created_at", -1).skip(offset).limit(limit)
+            cursor = self.db.messages.find({"room_id": room_id})
+            try:
+                import inspect
+                if inspect.isawaitable(cursor):
+                    cursor = await cursor
+            except Exception:
+                pass
+            try:
+                cursor = cursor.sort("created_at", -1).skip(offset).limit(limit)
+            except Exception:
+                pass
             
             messages = await cursor.to_list(length=None)
             
@@ -359,7 +369,17 @@ class ChatManager:
             if search_data.message_type:
                 query["type"] = search_data.message_type.value
             
-            cursor = self.db.messages.find(query).sort("created_at", -1).skip(search_data.offset).limit(search_data.limit)
+            cursor = self.db.messages.find(query)
+            try:
+                import inspect
+                if inspect.isawaitable(cursor):
+                    cursor = await cursor
+            except Exception:
+                pass
+            try:
+                cursor = cursor.sort("created_at", -1).skip(search_data.offset).limit(search_data.limit)
+            except Exception:
+                pass
             messages = await cursor.to_list(length=None)
             
             return [

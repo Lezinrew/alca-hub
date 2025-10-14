@@ -3,8 +3,17 @@ import os
 from typing import Dict, Any
 from datetime import timedelta
 
+# Utilitário interno
+def _require_env(var_name: str) -> str:
+    value = os.getenv(var_name)
+    if not value:
+        raise RuntimeError(f"Variável de ambiente {var_name} não configurada.")
+    return value
+
+
 # Configurações de JWT
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "alca-hub-jwt-secret-2025")
+SECRET_KEY = _require_env("SECRET_KEY")
+JWT_SECRET_KEY = SECRET_KEY
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
@@ -197,10 +206,9 @@ def get_security_config() -> Dict[str, Any]:
 def validate_security_config() -> bool:
     """Validar configurações de segurança."""
     try:
-        # Verificar se JWT secret key está definido
-        if not JWT_SECRET_KEY or JWT_SECRET_KEY == "alca-hub-jwt-secret-2025":
-            if ENVIRONMENT == "production":
-                raise ValueError("JWT_SECRET_KEY deve ser definido em produção")
+        # Verificar se chave secreta está definida
+        if not SECRET_KEY:
+            raise ValueError("SECRET_KEY deve ser definida")
 
         # Verificar se configurações de rate limiting são válidas
         for config_name, config in [
