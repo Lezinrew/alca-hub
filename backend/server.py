@@ -39,6 +39,15 @@ import io
 import math
 
 from auth.middleware import setup_security_middlewares
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from utils.structured_logger import logger, log_user_action, log_api_request, log_security_event
+
+# Import Beanie models (imported early to avoid circular dependencies)
+# Note: Beanie User model is imported but Pydantic User model (line ~164) is kept for backward compatibility
+from models.user import User as BeanieUserModel
+from core.enums import UserType
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -98,6 +107,11 @@ API_BASE_URL = (
 app = FastAPI(
     title="Alça Hub API", description="Sistema de gestão de serviços para condomínios"
 )
+
+# Rate limiting configuration
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configuração de middlewares de segurança (JWT, rate limiting, etc.)
 security_manager, token_manager, blacklist = setup_security_middlewares(
@@ -554,7 +568,7 @@ async def update_user(
     if not found.get("ativo", True):
         raise HTTPException(status_code=400, detail="Usuário inativo")
     update_fields = {k: v for k, v in update_data.items() if v is not None}
-    res = await database.users.update_one({"_id": user_id}, update_fields)
+    res = await database.users.update_one({"_id": user_id}, {"$set": update_fields})
     # Mocks nos testes verificam modified_count
     modified_count = getattr(res, "modified_count", 1)
     return {"modified_count": modified_count}
@@ -574,7 +588,7 @@ async def soft_delete_user(user_id: str, database) -> Dict[str, Any]:
     if not found:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     res = await database.users.update_one(
-        {"_id": user_id}, {"ativo": False, "updated_at": datetime.utcnow()}
+        {"_id": user_id}, {"$set": {"ativo": False, "updated_at": datetime.utcnow()}}
     )
     modified_count = getattr(res, "modified_count", 1)
     return {"modified_count": modified_count}
@@ -584,24 +598,29 @@ def check_user_permissions(user: Dict[str, Any], required_permission: str) -> bo
     return validate_user_permissions(user, required_permission)
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Debug: verificar se o get_current_user está sendo chamado
-    if os.environ.get("TESTING") == "1":
-        print(
-            f"DEBUG: get_current_user called - token: {token[:50] if token else 'None'}..."
-        )
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> BeanieUserModel:
+    """
+    Dependency para obter usuário autenticado usando Beanie ODM.
+
+    Verifica token JWT e retorna usuário do banco de dados.
+    Suporta modo de teste com mock.
+
+    Returns:
+        BeanieUserModel: Instância do modelo Beanie User
+    """
+    from repositories.user_repository import UserRepository
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Token de autorização não fornecido",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    # Bypass em modo de teste: tentar decodificar para refletir email/id do payload; se falhar, usar defaults
+
+    # Modo de teste: retornar mock user
     if os.getenv("TEST_MODE") == "1" or (os.getenv("ENV") or "").lower() == "test":
-        # Verificar se token está na blacklist
         if token in _invalidated_tokens:
             raise credentials_exception
-        
+
         email_val = "test@example.com"
         user_id_val = "test-user"
         try:
@@ -610,69 +629,66 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             user_id_val = payload.get("sub") or user_id_val
         except Exception:
             pass
-        return User(
+
+        # Retornar mock Beanie User
+        return BeanieUserModel(
             id=user_id_val,
             email=email_val,
             nome="Usuário Teste",
             cpf="00000000000",
             telefone="00000000000",
-            endereco="Endereço não informado",
-            tipo="morador",
-            tipos=["morador"],
-            tipo_ativo="morador",
+            endereco="Endereço Teste",
+            tipos=[UserType.MORADOR],
+            tipo_ativo=UserType.MORADOR,
             ativo=True,
         )
 
+    # Validar e decodificar token JWT
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except jwt.PyJWTError:
-        raise credentials_exception
-
-    # Usar mock do banco durante testes
-    db_to_use = db
-    if os.environ.get("TESTING") == "1":
-        # Verificar se há mock_database disponível
-        mock_db = globals().get("mock_database")
-        if mock_db:
-            db_to_use = mock_db
-        else:
-            # Se não há mock, usar um mock simples para evitar conexão real
-            from unittest.mock import AsyncMock
-
-            db_to_use = AsyncMock()
-            db_to_use.users = AsyncMock()
-            db_to_use.users.find_one = AsyncMock(return_value=None)
-
-    # Debug: verificar se o mock está sendo usado
-    if os.environ.get("TESTING") == "1":
-        print(
-            f"DEBUG: get_current_user - user_id: {user_id}, db_to_use: {type(db_to_use)}, mock_database: {globals().get('mock_database')}"
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Debug: verificar se o mock está sendo usado
-    if os.environ.get("TESTING") == "1":
-        print(
-            f"DEBUG: get_current_user - user_id: {user_id}, db_to_use: {type(db_to_use)}, mock_database: {globals().get('mock_database')}"
-        )
+    # Buscar usuário no banco usando Beanie
+    user = await UserRepository.find_by_id(user_id)
 
-    # Debug: verificar se o mock está sendo usado
-    if os.environ.get("TESTING") == "1":
-        print(
-            f"DEBUG: get_current_user - user_id: {user_id}, db_to_use: {type(db_to_use)}, mock_database: {globals().get('mock_database')}"
-        )
-
-    user = await db_to_use.users.find_one({"id": user_id})
     if user is None:
-        # Debug: verificar se o mock está sendo usado
-        if os.environ.get("TESTING") == "1":
-            print(
-                f"DEBUG: get_current_user - user_id: {user_id}, db_to_use: {type(db_to_use)}, mock_database: {globals().get('mock_database')}"
-            )
-        raise credentials_exception
-    return User(**user)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Verificar se usuário está ativo
+    if not user.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta desativada",
+        )
+
+    # Verificar se usuário está bloqueado
+    if user.is_conta_bloqueada():
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Conta bloqueada até {user.bloqueado_ate.isoformat()}",
+        )
+
+    # Verificar se token está na blacklist
+    if token in user.tokens_blacklist:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token foi invalidado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
 
 
 @api_router.post("/auth/token")
@@ -735,7 +751,9 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 @api_router.get("/providers")
+@limiter.limit("30/minute")  # Rate limit por IP
 async def get_providers(
+    request: Request,
     lat: float = Query(..., description="Latitude do ponto de referência"),
     lon: float = Query(..., description="Longitude do ponto de referência"),
     radius_km: float = Query(
@@ -941,7 +959,9 @@ async def get_providers(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao buscar prestadores: {str(e)}")
+        logger.error(f"Erro ao buscar prestadores: {str(e)}", 
+                    endpoint="/api/providers", 
+                    error_type=type(e).__name__)
         raise HTTPException(
             status_code=500, detail="Erro interno do servidor ao buscar prestadores"
         )
@@ -1067,36 +1087,19 @@ async def auto_approve_demo_payment(payment_id: str, delay_seconds: int):
 
 # Authentication routes
 @api_router.post("/auth/register")
-async def register_user(user_data: UserCreate):
-    # Check if user already exists
-    db_to_use = db
-    if os.environ.get("TESTING") == "1":
-        # Durante testes unitários de auth, mock_database é injetado via fixture
-        md = globals().get("mock_database")
-        if md:
-            db_to_use = md
-        # Se não há mock, usar um mock simples para evitar conexão real
-        else:
-            from unittest.mock import AsyncMock
+@limiter.limit("5/minute")  # Rate limit mais restritivo para registro
+async def register_user(request: Request, user_data: UserCreate):
+    """
+    Registra novo usuário usando Beanie ODM
 
-            db_to_use = AsyncMock()
-            db_to_use.users = AsyncMock()
-            db_to_use.users.find_one = AsyncMock(return_value=None)
-            db_to_use.users.insert_one = AsyncMock(
-                return_value=AsyncMock(inserted_id="123")
-            )
-    existing_user = await db_to_use.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email já cadastrado"
-        )
-
-    # Check CPF
-    existing_cpf = await db_to_use.users.find_one({"cpf": user_data.cpf})
-    if existing_cpf:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="CPF já cadastrado"
-        )
+    - Valida email e CPF únicos
+    - Valida aceite de termos
+    - Cria usuário com senha hasheada
+    - Retorna token JWT
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+    from pymongo.errors import DuplicateKeyError
 
     # AHSW-30: Validar aceite de termos de uso
     if not user_data.aceitou_termos:
@@ -1105,12 +1108,32 @@ async def register_user(user_data: UserCreate):
             detail="É obrigatório aceitar os Termos de Uso para criar a conta",
         )
 
-    # Create user
+    # Validar email duplicado
+    if await UserRepository.email_exists(user_data.email):
+        log_security_event("duplicate_email_attempt", email=user_data.email)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email já cadastrado"
+        )
+
+    # Validar CPF duplicado
+    cpf_to_check = user_data.cpf or "00000000000"
+    if await UserRepository.cpf_exists(cpf_to_check):
+        log_security_event("duplicate_cpf_attempt", cpf=cpf_to_check)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CPF já cadastrado"
+        )
+
+    # Obter senha e validar
     raw_password = user_data.password or user_data.senha or "senha123456"
-    # Validação simples de força de senha para testes de integração
     if len(raw_password) < 6:
         raise HTTPException(status_code=400, detail="Senha muito fraca")
+
+    # Hash da senha
     hashed_password = get_password_hash(raw_password)
+
+    # Preparar dados do usuário
     user_dict = user_data.dict()
     user_dict.pop("password", None)
     user_dict.pop("senha", None)
@@ -1121,181 +1144,211 @@ async def register_user(user_data: UserCreate):
     user_dict["nome"] = user_dict.get("nome") or "Usuário"
     user_dict["telefone"] = user_dict.get("telefone") or "00000000000"
 
-    # Definir tipo ativo como o primeiro da lista
-    user_dict["tipo_ativo"] = (
-        user_dict["tipos"][0] if user_dict["tipos"] else UserType.MORADOR
-    )
+    # Converter tipos de string para enum
+    if "tipos" in user_dict and user_dict["tipos"]:
+        from core.enums import UserType
+        tipos_enum = []
+        for tipo in user_dict["tipos"]:
+            if isinstance(tipo, str):
+                tipos_enum.append(UserType(tipo))
+            else:
+                tipos_enum.append(tipo)
+        user_dict["tipos"] = tipos_enum
+    else:
+        from core.enums import UserType
+        user_dict["tipos"] = [UserType.MORADOR]
 
-    # Compatibilidade: se tipo único informado, refletir em tipos
-    if user_dict.get("tipo") and not user_dict.get("tipos"):
-        user_dict["tipos"] = [user_dict["tipo"]]
-    # Persistir metadados do aceite
-    if not user_dict.get("data_aceite_termos"):
-        user_dict["data_aceite_termos"] = datetime.utcnow()
+    # Definir tipo ativo
+    if "tipo_ativo" not in user_dict or not user_dict["tipo_ativo"]:
+        user_dict["tipo_ativo"] = user_dict["tipos"][0]
+    elif isinstance(user_dict["tipo_ativo"], str):
+        from core.enums import UserType
+        user_dict["tipo_ativo"] = UserType(user_dict["tipo_ativo"])
 
-    user = User(**{k: v for k, v in user_dict.items() if k != "tipo"})
-    user_doc = user.dict()
-    user_doc["password"] = hashed_password
-    user_doc["aceitou_termos"] = True
-    user_doc["data_aceite_termos"] = user_dict["data_aceite_termos"]
+    # Adicionar senha hasheada
+    user_dict["senha"] = hashed_password
 
-    await db_to_use.users.insert_one(user_doc)
+    # Adicionar timestamp do aceite
+    user_dict["aceitou_termos_em"] = datetime.utcnow()
 
-    # Create access token
+    # Criar usuário Beanie
+    try:
+        new_user = BeanieUser(**user_dict)
+        await UserRepository.create(new_user)
+    except DuplicateKeyError:
+        log_security_event("duplicate_user_attempt", email=user_data.email)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email ou CPF já cadastrado"
+        )
+    except Exception as e:
+        logger.error(f"Erro ao criar usuário: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao criar usuário"
+        )
+
+    # Criar token de acesso
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "id": user.id, "email": user.email},
+        data={
+            "sub": str(new_user.id),
+            "id": str(new_user.id),
+            "email": new_user.email
+        },
         expires_delta=access_token_expires,
     )
 
-    user_payload = user.dict()
-    if not user_payload.get("tipo"):
-        inferred_tipo = (
-            user_payload.get("tipo_ativo")
-            or (user_payload.get("tipos") or ["morador"])[0]
-        )
-        user_payload["tipo"] = (
-            inferred_tipo if isinstance(inferred_tipo, str) else str(inferred_tipo)
-        )
-    return {"message": "Usuário criado com sucesso", "user": user_payload}
+    # Preparar payload de resposta
+    user_payload = new_user.to_dict()
+    user_payload["id"] = str(new_user.id)
+    user_payload["token"] = access_token
+
+    # Compatibilidade com frontend: adicionar campo "tipo"
+    if "tipo" not in user_payload:
+        user_payload["tipo"] = user_payload["tipo_ativo"]
+
+    # Log de sucesso
+    log_user_action(
+        "user_registered",
+        str(new_user.id),
+        email=new_user.email,
+        user_type=str(new_user.tipo_ativo.value)
+    )
+
+    return {
+        "message": "Usuário criado com sucesso",
+        "user": user_payload,
+        "token": access_token
+    }
 
 
 @api_router.post("/auth/login")
-async def login_user(user_credentials: UserLogin):
-    try:
-        # Bypass de autenticação em modo de teste
-        import os as _os
-        if _os.getenv("TEST_MODE") == "1" or (_os.getenv("ENV") or "").lower() == "test":
-            email_lower = str(user_credentials.email).lower()
-            user_payload = {
-                "id": "test-user",
-                "email": email_lower,
-                "nome": "Usuário Teste",
-                "cpf": "00000000000",
-                "telefone": "00000000000",
-                "endereco": "Endereço não informado",
-                "tipos": ["morador"],
-                "tipo_ativo": "morador",
-                "ativo": True,
-            }
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(
-                data={"sub": user_payload["id"], "id": user_payload["id"], "email": user_payload["email"]},
-                expires_delta=access_token_expires,
-            )
-            return {"access_token": access_token, "refresh_token": "test-refresh", "token_type": "bearer", "user": user_payload}
+@limiter.limit("10/minute")  # Rate limit para login
+async def login_user(request: Request, user_credentials: UserLogin):
+    """
+    Autentica usuário usando Beanie ODM
 
-        # Resolver DB considerando helper patchado e mock_database global
-        db_to_use = db
-        try:
-            db_to_use = get_database() or db
-        except Exception:
-            db_to_use = db
-        md = globals().get("mock_database")
-        if md:
-            db_to_use = md
-        elif os.environ.get("TESTING") == "1":
-            from unittest.mock import AsyncMock
-            db_to_use = AsyncMock()
-            db_to_use.users = AsyncMock()
-            db_to_use.users.find_one = AsyncMock(return_value=None)
-            db_to_use.login_attempts = AsyncMock()
-            db_to_use.login_attempts.find_one = AsyncMock(return_value=None)
-    except Exception as e:
-        # Em caso de erro de conexão com banco, retornar 500
-        if "connection" in str(e).lower() or "database" in str(e).lower():
-            raise HTTPException(
-                status_code=500, detail="Erro de conexão com o banco de dados"
-            )
-        raise HTTPException(status_code=500, detail="Erro interno do servidor")
-    # AHSW-14: Limite de tentativas de login (5 tentativas -> bloqueio 5 min)
-    now = datetime.utcnow()
+    - Valida credenciais
+    - Verifica tentativas de login (máx 5)
+    - Bloqueia conta após 5 tentativas (5 minutos)
+    - Retorna token JWT
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+
+    # Modo de teste (bypass)
+    import os as _os
+    if _os.getenv("TEST_MODE") == "1" or (_os.getenv("ENV") or "").lower() == "test":
+        email_lower = str(user_credentials.email).lower()
+        user_payload = {
+            "id": "test-user",
+            "email": email_lower,
+            "nome": "Usuário Teste",
+            "cpf": "00000000000",
+            "telefone": "00000000000",
+            "endereco": "Endereço não informado",
+            "tipos": ["morador"],
+            "tipo_ativo": "morador",
+            "ativo": True,
+        }
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user_payload["id"], "id": user_payload["id"], "email": user_payload["email"]},
+            expires_delta=access_token_expires,
+        )
+        log_user_action("user_login", user_payload["id"], email=user_payload["email"], test_mode=True)
+        return {"access_token": access_token, "refresh_token": "test-refresh", "token_type": "bearer", "user": user_payload}
+
+    # Validar senha foi fornecida
+    if not (user_credentials.password or user_credentials.senha):
+        raise HTTPException(status_code=422, detail="Senha é obrigatória")
+
     email_lower = str(user_credentials.email).lower()
-    attempts = await db_to_use.login_attempts.find_one({"email": email_lower})
-    # Normalizar quando mocks retornam objetos não-dict
-    if not isinstance(attempts, dict):
-        attempts = None
-    blocked_until = attempts.get("blocked_until") if attempts else None
-    if isinstance(blocked_until, datetime) and blocked_until > now:
-        remaining = int((attempts["blocked_until"] - now).total_seconds())
+
+    # Buscar usuário
+    user = await UserRepository.find_by_email(email_lower)
+
+    # Verificar se conta está bloqueada
+    if user and user.is_conta_bloqueada():
+        remaining = 0
+        if user.bloqueado_ate:
+            remaining = int((user.bloqueado_ate - datetime.utcnow()).total_seconds())
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="bloqueado por 5 minutos",
+            detail=f"Conta bloqueada. Tente novamente em {remaining} segundos.",
             headers={"Retry-After": str(max(1, remaining))},
         )
 
-    user_doc = await db_to_use.users.find_one({"email": email_lower})
-    # Validar campos obrigatórios
-    if not (user_credentials.password or user_credentials.senha):
-        raise HTTPException(status_code=422, detail="Senha é obrigatória")
+    # Verificar credenciais
     raw_password = user_credentials.password or user_credentials.senha or ""
-    stored_hash = (user_doc or {}).get("senha") or (user_doc or {}).get("password", "")
-    import os as _os
-    _test_mode = _os.getenv("TEST_MODE") == "1" or (_os.getenv("ENV") or "").lower() == "test"
-    _password_ok = True if _test_mode else verify_password(raw_password, stored_hash)
-    if (
-        not user_doc
-        or not user_doc.get("ativo", True)
-        or not _password_ok
-    ):
-        # Atualizar tentativas
-        window_start = attempts.get("window_start") if attempts else None
-        if not window_start or (now - window_start).total_seconds() > 300:  # 5 minutos
-            attempts_count = 1
-            window_start = now
-        else:
-            attempts_count = (attempts.get("attempts_count", 0) if attempts else 0) + 1
-        update = {
-            "$set": {
-                "attempts_count": attempts_count,
-                "window_start": window_start,
-                "last_failed_at": now,
-            }
-        }
-        if attempts_count >= 5:
-            update["$set"]["blocked_until"] = now + timedelta(minutes=5)
-        await db_to_use.login_attempts.update_one(
-            {"email": email_lower}, update, upsert=True
-        )
+
+    # Validar usuário existe, está ativo e senha correta
+    if not user or not user.ativo or not verify_password(raw_password, user.senha):
+        # Incrementar tentativas se usuário existe
+        if user:
+            await user.incrementar_tentativas_login()
+
+            # Log de falha
+            log_security_event(
+                "failed_login",
+                email=email_lower,
+                attempts=user.tentativas_login
+            )
+
+            # Se bloqueou, logar
+            if user.conta_bloqueada:
+                log_security_event(
+                    "account_locked",
+                    email=email_lower,
+                    attempts=user.tentativas_login
+                )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    safe_user_doc = dict(user_doc)
-    safe_user_doc.setdefault("cpf", "00000000000")
-    safe_user_doc.setdefault("nome", "Usuário")
-    safe_user_doc.setdefault("telefone", "00000000000")
-    safe_user_doc.setdefault("endereco", "Endereço não informado")
-    if not safe_user_doc.get("tipos") and safe_user_doc.get("tipo"):
-        safe_user_doc["tipos"] = [safe_user_doc["tipo"]]
-    if not safe_user_doc.get("tipo_ativo"):
-        safe_user_doc["tipo_ativo"] = safe_user_doc.get("tipos", [UserType.MORADOR])[0]
-    user = User(**safe_user_doc)
+    # Login bem-sucedido: resetar tentativas
+    await user.reset_tentativas_login()
+
+    # Criar token de acesso
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "id": user.id, "email": user.email},
+        data={
+            "sub": str(user.id),
+            "id": str(user.id),
+            "email": user.email
+        },
         expires_delta=access_token_expires,
     )
-    # Sucesso: resetar contador de tentativas
-    await db_to_use.login_attempts.delete_one({"email": email_lower})
 
-    user_payload = user.dict()
-    if not user_payload.get("tipo"):
-        # Inferir do tipo_ativo ou da lista de tipos
-        inferred_tipo = (
-            user_payload.get("tipo_ativo")
-            or (user_payload.get("tipos") or ["morador"])[0]
-        )
-        user_payload["tipo"] = (
-            inferred_tipo if isinstance(inferred_tipo, str) else str(inferred_tipo)
-        )
-    return {"access_token": access_token, "token_type": "bearer", "user": user_payload}
+    # Preparar payload de resposta
+    user_payload = user.to_dict()
+    user_payload["id"] = str(user.id)
+
+    # Compatibilidade com frontend: adicionar campo "tipo"
+    if "tipo" not in user_payload:
+        user_payload["tipo"] = user_payload["tipo_ativo"]
+
+    # Log de login bem-sucedido
+    log_user_action(
+        "user_login",
+        str(user.id),
+        email=user.email,
+        user_type=str(user.tipo_ativo.value)
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user_payload
+    }
 
 
 @api_router.get("/auth/me", response_model=User)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(current_user: BeanieUserModel = Depends(get_current_user)):
     return current_user
 
 
@@ -1328,7 +1381,7 @@ async def logout_endpoint(request: Request):
 
 
 @api_router.get("/profile")
-async def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(current_user: BeanieUserModel = Depends(get_current_user)):
     """Endpoint para obter perfil do usuário autenticado."""
     return current_user
 
@@ -1508,7 +1561,7 @@ class SwitchModeRequest(BaseModel):
 
 @api_router.post("/auth/switch-mode")
 async def switch_user_mode(
-    request: SwitchModeRequest, current_user: User = Depends(get_current_user)
+    request: SwitchModeRequest, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Alternar entre modo morador e prestador"""
     if request.tipo_ativo not in current_user.tipos:
@@ -1531,7 +1584,7 @@ async def switch_user_mode(
 # Profile and Settings routes
 @api_router.put("/profile")
 async def update_profile(
-    profile_data: UserProfileUpdate, current_user: User = Depends(get_current_user)
+    profile_data: UserProfileUpdate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Update user profile information"""
     try:
@@ -1549,7 +1602,7 @@ async def update_profile(
 
 @api_router.put("/settings")
 async def update_settings(
-    settings_data: UserSettingsUpdate, current_user: User = Depends(get_current_user)
+    settings_data: UserSettingsUpdate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Update user settings"""
     try:
@@ -1566,7 +1619,7 @@ async def update_settings(
 
 
 @api_router.delete("/account", response_model=DeleteAccountResponse)
-async def soft_delete_account(current_user: User = Depends(get_current_user)):
+async def soft_delete_account(current_user: BeanieUserModel = Depends(get_current_user)):
     """Realiza delete lógico da conta do usuário autenticado.
     - Define ativo=False
     - Mantém registro para auditoria
@@ -1601,7 +1654,7 @@ async def soft_delete_account(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/profile/payment-methods")
 async def add_payment_method(
-    payment_method: PaymentMethodAdd, current_user: User = Depends(get_current_user)
+    payment_method: PaymentMethodAdd, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Add payment method to user profile"""
     try:
@@ -1634,7 +1687,7 @@ async def add_payment_method(
 
 @api_router.delete("/profile/payment-methods/{payment_method_id}")
 async def remove_payment_method(
-    payment_method_id: str, current_user: User = Depends(get_current_user)
+    payment_method_id: str, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Remove payment method from user profile"""
     try:
@@ -1655,7 +1708,7 @@ async def remove_payment_method(
 
 
 @api_router.get("/profile/earnings")
-async def get_earnings_summary(current_user: User = Depends(get_current_user)):
+async def get_earnings_summary(current_user: BeanieUserModel = Depends(get_current_user)):
     """Get earnings summary for service providers"""
     if current_user.tipo != UserType.PRESTADOR:
         raise HTTPException(
@@ -1726,7 +1779,7 @@ class LocationUpdate(BaseModel):
 
 @api_router.put("/profile/location")
 async def update_profile_location(
-    body: LocationUpdate, current_user: User = Depends(get_current_user)
+    body: LocationUpdate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Atualiza latitude/longitude do usuário autenticado (prestador ou morador).
     Regras: latitude [-90, 90], longitude [-180, 180].
@@ -1756,10 +1809,248 @@ async def update_profile_location(
         raise HTTPException(status_code=500, detail="Erro ao atualizar localização")
 
 
+# ==================== USER CRUD ROUTES (Beanie ODM) ====================
+
+@api_router.get("/users")
+async def list_users(
+    skip: int = Query(0, ge=0, description="Número de usuários para pular"),
+    limit: int = Query(20, ge=1, le=100, description="Limite de usuários"),
+    user_type: Optional[str] = Query(None, description="Filtrar por tipo: morador, prestador, admin"),
+    ativo: bool = Query(True, description="Apenas usuários ativos"),
+    current_user: BeanieUserModel = Depends(get_current_user)
+):
+    """
+    Lista usuários com paginação e filtros (Beanie ODM)
+
+    Requer autenticação
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+    from core.enums import UserType as UserTypeEnum
+
+    try:
+        # Verificar permissão (apenas admins podem listar todos os usuários)
+        if not current_user.is_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas administradores podem listar usuários"
+            )
+
+        # Buscar usuários
+        if user_type:
+            try:
+                user_type_enum = UserTypeEnum(user_type)
+                users = await UserRepository.find_by_type(
+                    user_type=user_type_enum,
+                    ativo=ativo,
+                    skip=skip,
+                    limit=limit
+                )
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Tipo inválido: {user_type}")
+        else:
+            users = await UserRepository.find_active_users(skip=skip, limit=limit)
+
+        # Converter para dicionários (sem dados sensíveis)
+        users_data = [user.to_dict(include_sensitive=False) for user in users]
+
+        return {
+            "users": users_data,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "count": len(users_data)
+            },
+            "filters": {
+                "user_type": user_type,
+                "ativo": ativo
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao listar usuários")
+
+
+@api_router.get("/users/{user_id}")
+async def get_user_by_id(
+    user_id: str,
+    current_user: BeanieUserModel = Depends(get_current_user)
+):
+    """
+    Busca usuário por ID (Beanie ODM)
+
+    Usuários podem ver apenas seu próprio perfil, admins podem ver qualquer um
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+
+    try:
+        # Verificar permissão
+        if user_id != str(current_user.id) and not current_user.is_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem permissão para ver este usuário"
+            )
+
+        # Buscar usuário
+        user = await UserRepository.find_by_id(user_id)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Retornar dados (sem dados sensíveis exceto se for o próprio usuário)
+        include_sensitive = (user_id == str(current_user.id))
+        return user.to_dict(include_sensitive=include_sensitive)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar usuário")
+
+
+@api_router.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    nome: Optional[str] = None,
+    telefone: Optional[str] = None,
+    endereco: Optional[str] = None,
+    complemento: Optional[str] = None,
+    cidade: Optional[str] = None,
+    estado: Optional[str] = None,
+    cep: Optional[str] = None,
+    current_user: BeanieUserModel = Depends(get_current_user)
+):
+    """
+    Atualiza dados de usuário (Beanie ODM)
+
+    Usuários podem atualizar apenas seu próprio perfil, admins podem atualizar qualquer um
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+
+    try:
+        # Verificar permissão
+        if user_id != str(current_user.id) and not current_user.is_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem permissão para atualizar este usuário"
+            )
+
+        # Buscar usuário
+        user = await UserRepository.find_by_id(user_id)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Atualizar campos fornecidos
+        if nome is not None:
+            user.nome = nome
+        if telefone is not None:
+            user.telefone = telefone
+        if endereco is not None:
+            user.endereco = endereco
+        if complemento is not None:
+            user.complemento = complemento
+        if cidade is not None:
+            user.cidade = cidade
+        if estado is not None:
+            user.estado = estado
+        if cep is not None:
+            user.cep = cep
+
+        # Salvar
+        await UserRepository.update(user)
+
+        return {
+            "message": "Usuário atualizado com sucesso",
+            "user": user.to_dict(include_sensitive=False)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao atualizar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar usuário")
+
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: BeanieUserModel = Depends(get_current_user)
+):
+    """
+    Soft delete de usuário (Beanie ODM) - LGPD
+
+    Usuários podem deletar apenas sua própria conta, admins podem deletar qualquer um
+    """
+    from models.user import User as BeanieUser
+    from repositories.user_repository import UserRepository
+
+    try:
+        # Verificar permissão
+        if user_id != str(current_user.id) and not current_user.is_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem permissão para deletar este usuário"
+            )
+
+        # Soft delete
+        success = await UserRepository.soft_delete(user_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        return {
+            "message": "Usuário desativado com sucesso (soft delete)",
+            "user_id": user_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao deletar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao deletar usuário")
+
+
+@api_router.get("/users/stats/general")
+async def get_users_statistics(
+    current_user: BeanieUserModel = Depends(get_current_user)
+):
+    """
+    Retorna estatísticas gerais de usuários (Beanie ODM)
+
+    Apenas admins
+    """
+    from repositories.user_repository import UserRepository
+
+    try:
+        # Verificar permissão
+        if not current_user.is_admin():
+            raise HTTPException(
+                status_code=403,
+                detail="Apenas administradores podem ver estatísticas"
+            )
+
+        # Obter estatísticas
+        stats = await UserRepository.get_statistics()
+
+        return stats
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar estatísticas: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar estatísticas")
+
+
 # Service routes
 @api_router.post("/services", response_model=Service)
 async def create_service(
-    service_data: ServiceCreate, current_user: User = Depends(get_current_user)
+    service_data: ServiceCreate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     if current_user.tipo != UserType.PRESTADOR:
         raise HTTPException(
@@ -1796,7 +2087,7 @@ async def get_service(service_id: str):
 
 
 @api_router.get("/my-services", response_model=List[Service])
-async def get_my_services(current_user: User = Depends(get_current_user)):
+async def get_my_services(current_user: BeanieUserModel = Depends(get_current_user)):
     if current_user.tipo != UserType.PRESTADOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1812,7 +2103,7 @@ async def get_my_services(current_user: User = Depends(get_current_user)):
 # Booking routes
 @api_router.post("/bookings", response_model=Booking)
 async def create_booking(
-    booking_data: BookingCreate, current_user: User = Depends(get_current_user)
+    booking_data: BookingCreate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     if current_user.tipo != UserType.MORADOR:
         raise HTTPException(
@@ -1847,7 +2138,7 @@ async def create_booking(
 
 
 @api_router.get("/bookings", response_model=List[Booking])
-async def get_my_bookings(current_user: User = Depends(get_current_user)):
+async def get_my_bookings(current_user: BeanieUserModel = Depends(get_current_user)):
     if current_user.tipo == UserType.MORADOR:
         filter_query = {"morador_id": current_user.id}
     elif current_user.tipo == UserType.PRESTADOR:
@@ -1863,7 +2154,7 @@ async def get_my_bookings(current_user: User = Depends(get_current_user)):
 async def update_booking(
     booking_id: str,
     booking_update: BookingUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     booking = await db.bookings.find_one({"id": booking_id})
     if not booking:
@@ -1896,7 +2187,7 @@ async def update_booking(
 # Review routes
 @api_router.post("/reviews", response_model=Review)
 async def create_review(
-    review_data: ReviewCreate, current_user: User = Depends(get_current_user)
+    review_data: ReviewCreate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     if current_user.tipo != UserType.MORADOR:
         raise HTTPException(
@@ -1968,7 +2259,7 @@ async def get_service_reviews(service_id: str):
 
 # Stats routes (for admin dashboard)
 @api_router.get("/stats/overview")
-async def get_stats_overview(current_user: User = Depends(get_current_user)):
+async def get_stats_overview(current_user: BeanieUserModel = Depends(get_current_user)):
     if current_user.tipo != UserType.ADMIN:
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
 
@@ -1996,7 +2287,7 @@ def ensure_admin(user: User):
 
 
 @api_router.get("/admin/stats")
-async def get_admin_stats(current_user: User = Depends(get_current_user)):
+async def get_admin_stats(current_user: BeanieUserModel = Depends(get_current_user)):
     ensure_admin(current_user)
     # Aggregate data for charts and counters
     total_users = await db.users.count_documents({})
@@ -2081,7 +2372,7 @@ async def get_admin_stats(current_user: User = Depends(get_current_user)):
 async def admin_list_users(
     q: Optional[str] = None,
     tipo: Optional[UserType] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     ensure_admin(current_user)
     filter_query: Dict[str, Any] = {}
@@ -2103,7 +2394,7 @@ async def admin_list_users(
 
 @api_router.post("/admin/users")
 async def admin_create_user(
-    body: UserCreate, current_user: User = Depends(get_current_user)
+    body: UserCreate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     if await db.users.find_one({"email": body.email}):
@@ -2121,7 +2412,7 @@ async def admin_create_user(
 
 @api_router.put("/admin/users/{user_id}")
 async def admin_update_user(
-    user_id: str, body: AdminUserUpdate, current_user: User = Depends(get_current_user)
+    user_id: str, body: AdminUserUpdate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     update_fields = {k: v for k, v in body.dict().items() if v is not None}
@@ -2138,7 +2429,7 @@ async def admin_update_user(
 
 @api_router.delete("/admin/users/{user_id}")
 async def admin_delete_user(
-    user_id: str, current_user: User = Depends(get_current_user)
+    user_id: str, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     res = await db.users.delete_one({"id": user_id})
@@ -2148,7 +2439,7 @@ async def admin_delete_user(
 
 
 @api_router.get("/admin/services")
-async def admin_list_services(current_user: User = Depends(get_current_user)):
+async def admin_list_services(current_user: BeanieUserModel = Depends(get_current_user)):
     ensure_admin(current_user)
     services = await db.services.find({}).sort("created_at", -1).to_list(length=1000)
     # attach usage
@@ -2163,7 +2454,7 @@ async def admin_list_services(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/admin/services")
 async def admin_create_service(
-    body: AdminServiceCreate, current_user: User = Depends(get_current_user)
+    body: AdminServiceCreate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     # Validate provider exists
@@ -2184,7 +2475,7 @@ async def admin_create_service(
 async def admin_update_service(
     service_id: str,
     body: AdminServiceUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     ensure_admin(current_user)
     update_fields = {k: v for k, v in body.dict().items() if v is not None}
@@ -2200,7 +2491,7 @@ async def admin_update_service(
 
 @api_router.delete("/admin/services/{service_id}")
 async def admin_delete_service(
-    service_id: str, current_user: User = Depends(get_current_user)
+    service_id: str, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     res = await db.services.delete_one({"id": service_id})
@@ -2210,7 +2501,7 @@ async def admin_delete_service(
 
 
 @api_router.get("/admin/bookings")
-async def admin_list_bookings(current_user: User = Depends(get_current_user)):
+async def admin_list_bookings(current_user: BeanieUserModel = Depends(get_current_user)):
     ensure_admin(current_user)
     bookings = await db.bookings.find({}).sort("created_at", -1).to_list(length=1000)
     return {"bookings": bookings}
@@ -2218,7 +2509,7 @@ async def admin_list_bookings(current_user: User = Depends(get_current_user)):
 
 @api_router.put("/admin/bookings/{booking_id}")
 async def admin_update_booking(
-    booking_id: str, body: BookingUpdate, current_user: User = Depends(get_current_user)
+    booking_id: str, body: BookingUpdate, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     ensure_admin(current_user)
     res = await db.bookings.update_one(
@@ -2232,7 +2523,7 @@ async def admin_update_booking(
 
 
 @api_router.get("/admin/export")
-async def admin_export(kind: str, current_user: User = Depends(get_current_user)):
+async def admin_export(kind: str, current_user: BeanieUserModel = Depends(get_current_user)):
     """Export data as CSV. kind: users|bookings|services"""
     ensure_admin(current_user)
     buf = io.StringIO()
@@ -2312,7 +2603,7 @@ async def admin_export(kind: str, current_user: User = Depends(get_current_user)
 # Payment routes
 @api_router.post("/payments/pix", response_model=PaymentResponse)
 async def create_pix_payment(
-    payment_request: PIXPaymentRequest, current_user: User = Depends(get_current_user)
+    payment_request: PIXPaymentRequest, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Create PIX payment for a booking"""
     try:
@@ -2464,7 +2755,7 @@ async def create_pix_payment(
 @api_router.post("/payments/credit-card", response_model=PaymentResponse)
 async def create_credit_card_payment(
     payment_request: CreditCardPaymentRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     """Create credit card payment for a booking"""
     try:
@@ -2555,7 +2846,7 @@ async def create_credit_card_payment(
 
 @api_router.get("/payments/{payment_id}/status")
 async def get_payment_status(
-    payment_id: str, current_user: User = Depends(get_current_user)
+    payment_id: str, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Get payment status from Mercado Pago or demo mode"""
     try:
@@ -2709,7 +3000,7 @@ async def get_mercadopago_public_key():
 # Geolocation and Map routes
 @api_router.put("/users/location")
 async def update_user_location(
-    latitude: float, longitude: float, current_user: User = Depends(get_current_user)
+    latitude: float, longitude: float, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Update user location coordinates"""
     try:
@@ -2732,7 +3023,7 @@ async def update_user_location(
 
 @api_router.put("/users/availability")
 async def update_availability(
-    disponivel: bool, current_user: User = Depends(get_current_user)
+    disponivel: bool, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Update service provider availability"""
     if current_user.tipo != UserType.PRESTADOR:
@@ -2777,7 +3068,7 @@ async def get_nearby_providers(
     longitude: float,
     radius_km: float = 10.0,
     categoria: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     """Get nearby service providers with their services"""
     try:
@@ -2866,7 +3157,7 @@ async def create_conversation(
     provider_id: str,
     service_id: str,
     initial_message: str,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     """Create a new chat conversation for service negotiation"""
     try:
@@ -2928,7 +3219,7 @@ async def create_conversation(
 
 
 @api_router.get("/chat/conversations")
-async def get_user_conversations(current_user: User = Depends(get_current_user)):
+async def get_user_conversations(current_user: BeanieUserModel = Depends(get_current_user)):
     """Get user's chat conversations"""
     try:
         query = {
@@ -2994,7 +3285,7 @@ async def get_user_conversations(current_user: User = Depends(get_current_user))
 
 @api_router.get("/chat/{conversation_id}/messages")
 async def get_conversation_messages(
-    conversation_id: str, current_user: User = Depends(get_current_user)
+    conversation_id: str, current_user: BeanieUserModel = Depends(get_current_user)
 ):
     """Get messages from a conversation"""
     try:
@@ -3036,7 +3327,7 @@ async def send_message(
     message: str,
     message_type: str = "text",
     proposed_price: Optional[float] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: BeanieUserModel = Depends(get_current_user),
 ):
     """Send a message in a conversation"""
     try:
@@ -3397,6 +3688,24 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def startup_db_client():
+    """Inicializa Beanie ODM no startup da aplicação"""
+    from beanie import init_beanie
+    from models import User, Service, Booking, Payment
+
+    try:
+        await init_beanie(
+            database=db,
+            document_models=[User, Service, Booking, Payment]
+        )
+        logger.info("✅ Beanie ODM inicializado com sucesso")
+        logger.info(f"   - Models carregados: User, Service, Booking, Payment")
+    except Exception as e:
+        logger.error(f"❌ Erro ao inicializar Beanie ODM: {str(e)}")
+        raise
 
 
 @app.on_event("shutdown")

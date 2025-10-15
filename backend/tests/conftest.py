@@ -1,5 +1,6 @@
 # Configuração global de testes para Alça Hub
 import pytest
+import pytest_asyncio
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.testclient import TestClient
@@ -7,6 +8,7 @@ from httpx import AsyncClient
 import os
 from unittest.mock import AsyncMock, MagicMock
 from faker import Faker
+from beanie import init_beanie
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
 
@@ -22,6 +24,9 @@ fake = Faker("pt_BR")
 TEST_DATABASE_URL = "mongodb://localhost:27017"
 TEST_DATABASE_NAME = "alca_hub_test"
 
+# Flag para garantir que Beanie é inicializado apenas uma vez
+_beanie_initialized = False
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -31,7 +36,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="module")
 async def test_db():
     """Criar conexão com banco de teste."""
     client = AsyncIOMotorClient(TEST_DATABASE_URL)
@@ -42,13 +47,33 @@ async def test_db():
     client.close()
 
 
+# Beanie initialization is done in individual test modules to avoid event loop issues
+# @pytest_asyncio.fixture(scope="module", autouse=True)
+# async def init_test_beanie():
+#     """Initialize Beanie for tests (runs once per module)"""
+#     from models.user import User
+#     from models.service import Service
+#     from models.booking import Booking
+#     from models.payment import Payment
+#
+#     client = AsyncIOMotorClient(TEST_DATABASE_URL)
+#     db = client[TEST_DATABASE_NAME]
+#
+#     await init_beanie(
+#         database=db,
+#         document_models=[User, Service, Booking, Payment]
+#     )
+#     yield
+#     client.close()
+
+
 @pytest.fixture
 def client():
     """Cliente de teste síncrono para FastAPI."""
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client():
     """Cliente de teste assíncrono para FastAPI."""
     async with AsyncClient(app=app, base_url="http://test") as ac:
