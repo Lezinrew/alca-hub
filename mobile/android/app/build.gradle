@@ -1,0 +1,236 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'jacoco'
+
+// Carregar propriedades do keystore (se existir)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace "br.com.alcahub.app"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        // Application ID base (será modificado por flavor)
+        applicationId "br.com.alcahub.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+
+    // Configuração de assinatura
+    signingConfigs {
+        debug {
+            // Debug usa keystore padrão do Android
+            // Localizado em ~/.android/debug.keystore
+        }
+
+        release {
+            // Release usa keystore de produção
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            } else {
+                // Fallback para variáveis de ambiente (CI/CD)
+                keyAlias System.getenv("KEYSTORE_KEY_ALIAS") ?: "androiddebugkey"
+                keyPassword System.getenv("KEYSTORE_KEY_PASSWORD") ?: "android"
+                storeFile System.getenv("KEYSTORE_FILE") ? file(System.getenv("KEYSTORE_FILE")) : null
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
+            }
+        }
+    }
+
+    // Product Flavors (dev/prod)
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+
+            // Build Config Fields para dev
+            buildConfigField "String", "API_BASE_URL", "\"http://10.0.2.2:8000\""
+            buildConfigField "String", "ENVIRONMENT", "\"development\""
+            buildConfigField "boolean", "ENABLE_LOGGING", "true"
+
+            // Recursos específicos de dev
+            resValue "string", "app_name", "AlcaHub Dev"
+        }
+
+        prod {
+            dimension "environment"
+
+            // Build Config Fields para prod
+            buildConfigField "String", "API_BASE_URL", "\"https://api.alcahub.com.br\""
+            buildConfigField "String", "ENVIRONMENT", "\"production\""
+            buildConfigField "boolean", "ENABLE_LOGGING", "false"
+
+            // Recursos específicos de prod
+            resValue "string", "app_name", "AlcaHub"
+        }
+    }
+
+    // Build Types (debug/release)
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+
+            // ProGuard desabilitado para debug
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        release {
+            debuggable false
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+
+            // ProGuard/R8 habilitado para release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Variantes geradas:
+    // - devDebug       (br.com.alcahub.app.dev)
+    // - devRelease     (br.com.alcahub.app.dev)
+    // - prodDebug      (br.com.alcahub.app)
+    // - prodRelease    (br.com.alcahub.app)
+
+    // Build features
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Configurações de compilação
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.0.21"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// JaCoCo Configuration
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+tasks.withType(Test) {
+    jacoco.includeNoLocationClasses = true
+    jacoco.excludes = ['jdk.internal.*']
+}
+
+task jacocoTestReport(type: JacocoReport, dependsOn: ['testDevDebugUnitTest']) {
+    group = "Reporting"
+    description = "Generate Jacoco coverage reports."
+
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+
+    def fileFilter = [
+        '**/R.class',
+        '**/R$*.class',
+        '**/BuildConfig.*',
+        '**/Manifest*.*',
+        '**/*Test*.*',
+        'android/**/*.*',
+        '**/data/models/**',
+        '**/Lambda$*.class',
+        '**/Lambda.class',
+        '**/*Lambda.class',
+        '**/*Lambda*.class',
+        '**/*_MembersInjector.class',
+        '**/Dagger*Component*.class',
+        '**/*Module_*Factory.class',
+        '**/di/module/*',
+        '**/*_Factory*.*',
+        '**/*Module*.*',
+        '**/*Dagger*.*',
+        '**/*Hilt*.*'
+    ]
+
+    def debugTree = fileTree(dir: "$buildDir/tmp/kotlin-classes/devDebug", excludes: fileFilter)
+    def mainSrc = "$projectDir/src/main/java"
+
+    sourceDirectories.setFrom(files([mainSrc]))
+    classDirectories.setFrom(files([debugTree]))
+    executionData.setFrom(fileTree(dir: buildDir, includes: [
+        'outputs/unit_test_code_coverage/devDebugUnitTest/testDevDebugUnitTest.exec'
+    ]))
+}
+
+// Task para coverage com threshold
+task coverageCheck(dependsOn: 'jacocoTestReport') {
+    doLast {
+        def reportFile = file("$buildDir/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        if (reportFile.exists()) {
+            def parser = new XmlParser()
+            parser.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+            parser.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false)
+            def report = parser.parse(reportFile)
+            def counter = report.counter.find { it.@type == 'INSTRUCTION' }
+            def missed = counter.@missed.toInteger()
+            def covered = counter.@covered.toInteger()
+            def total = missed + covered
+            def percentage = (covered / total) * 100
+
+            println "Code Coverage: ${percentage.round(2)}%"
+
+            // Threshold de 80%
+            if (percentage < 80) {
+                throw new GradleException("Code coverage is ${percentage.round(2)}%. Minimum required is 80%.")
+            }
+        }
+    }
+}

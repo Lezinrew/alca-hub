@@ -1,0 +1,27 @@
+// Debug Configuration for AlcaHub iOS
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = br.com.alcahub.app.dev
+PRODUCT_NAME = AlcaHub Dev
+
+// Swift Version
+SWIFT_VERSION = 5.10
+
+// Build Settings
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+SWIFT_COMPILATION_MODE = singlefile
+GCC_OPTIMIZATION_LEVEL = 0
+ENABLE_TESTABILITY = YES
+
+// Signing & Capabilities
+CODE_SIGN_IDENTITY = iPhone Developer
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = $(DEVELOPMENT_TEAM)
+
+// API Configuration
+API_BASE_URL = http:/$()/localhost:8000
+API_ENVIRONMENT = development
+
+// Other Settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ONLY_ACTIVE_ARCH = YES

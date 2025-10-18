@@ -10,6 +10,9 @@ Este arquivo serve como índice central para toda a documentação do projeto Al
 
 ## 📱 Aplicativos Mobile
 
+### **Panorama Técnico**
+- 🧭 **[MOBILE_TECHNICAL_OVERVIEW.md](docs/mobile/MOBILE_TECHNICAL_OVERVIEW.md)** - Visão técnica unificada Android/iOS
+
 ### **Android**
 - 📖 **[GUIA_ANDROID_APK.md](docs/mobile/android/GUIA_ANDROID_APK.md)** - Guia completo para gerar APK
 - 🧪 **[TESTE_ANDROID_CELULAR.md](docs/mobile/android/TESTE_ANDROID_CELULAR.md)** - Como testar no celular Android

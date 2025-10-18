@@ -416,7 +416,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     # Ajuste para testes: armazenar exp/iat em epoch UTC para compatibilidade
     exp_ts = int(expire.timestamp())
     iat_ts = int(datetime.utcnow().timestamp())
-    to_encode.update({"exp": exp_ts, "iat": iat_ts})
+    to_encode.update({"exp": exp_ts, "iat": iat_ts, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -1572,12 +1572,14 @@ async def switch_user_mode(
 
     # Atualizar tipo ativo no banco
     await db.users.update_one(
-        {"id": current_user.id},
+        {"_id": current_user.id},
         {"$set": {"tipo_ativo": request.tipo_ativo, "updated_at": datetime.utcnow()}},
     )
 
     # Retornar usuário atualizado
-    updated_user = await db.users.find_one({"id": current_user.id})
+    updated_user = await db.users.find_one({"_id": current_user.id})
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado após atualização")
     return User(**updated_user)
 
 

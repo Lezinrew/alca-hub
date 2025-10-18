@@ -49,6 +49,8 @@ import ReviewScreen from "./components/ReviewScreen";
 import { API_URL } from "./lib/config";
 import AdminDashboard from "./pages/AdminDashboard";
 import Mapa from "./pages/Mapa";
+import CameraTest from "./components/CameraTest";
+import { initPlugins } from "./utils/cordova-plugins";
 
 const API = `${API_URL}/api`;
 
@@ -532,6 +534,7 @@ const Register = () => {
                 name="nome"
                 value={formData.nome}
                 onChange={handleChange}
+                autoComplete="name"
                 required
               />
             </div>
@@ -543,6 +546,7 @@ const Register = () => {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
+                autoComplete="email"
                 required
               />
             </div>
@@ -554,6 +558,7 @@ const Register = () => {
                 value={formData.cpf}
                 onChange={handleChange}
                 placeholder="000.000.000-00"
+                autoComplete="off"
                 required
               />
             </div>
@@ -565,6 +570,7 @@ const Register = () => {
                 value={formData.telefone}
                 onChange={handleChange}
                 placeholder="(11) 99999-9999"
+                autoComplete="tel"
                 required
               />
             </div>
@@ -575,16 +581,18 @@ const Register = () => {
                 name="endereco"
                 value={formData.endereco}
                 onChange={handleChange}
+                autoComplete="street-address"
                 required
               />
             </div>
             <div>
-              <Label htmlFor="tipos">Tipo de usuário</Label>
+              <div className="text-sm font-medium text-gray-700 mb-2">Tipo de usuário</div>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="morador"
+                    name="tipo_morador"
                     checked={formData.tipos.includes("morador")}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -595,7 +603,7 @@ const Register = () => {
                     }}
                     className="rounded"
                   />
-                  <Label htmlFor="morador" className="text-sm font-normal">
+                  <Label htmlFor="morador" className="text-sm font-normal cursor-pointer">
                     Morador - Buscar e contratar serviços
                   </Label>
                 </div>
@@ -603,6 +611,7 @@ const Register = () => {
                   <input
                     type="checkbox"
                     id="prestador"
+                    name="tipo_prestador"
                     checked={formData.tipos.includes("prestador")}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -613,7 +622,7 @@ const Register = () => {
                     }}
                     className="rounded"
                   />
-                  <Label htmlFor="prestador" className="text-sm font-normal">
+                  <Label htmlFor="prestador" className="text-sm font-normal cursor-pointer">
                     Prestador - Oferecer serviços e gerenciar agenda
                   </Label>
                 </div>
@@ -630,6 +639,7 @@ const Register = () => {
                 type="password"
                 value={formData.password}
                 onChange={handleChange}
+                autoComplete="new-password"
                 required
               />
             </div>
@@ -2338,8 +2348,21 @@ const ProfileContent = React.memo(({ user, onUpdate, onLogout }) => {
       );
 
       if (response.data) {
-        // Atualizar dados do usuário no localStorage
-        localStorage.setItem('user', JSON.stringify(response.data));
+        // Atualizar dados do usuário no localStorage (sanitizar dados)
+        const userData = {
+          id: response.data.id,
+          email: response.data.email,
+          nome: response.data.nome,
+          cpf: response.data.cpf,
+          telefone: response.data.telefone,
+          endereco: response.data.endereco,
+          tipos: response.data.tipos,
+          tipo_ativo: response.data.tipo_ativo,
+          ativo: response.data.ativo,
+          created_at: response.data.created_at,
+          updated_at: response.data.updated_at
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
         
         toast({
           title: "Modo alterado!",
@@ -2973,6 +2996,11 @@ const ProfileContent = React.memo(({ user, onUpdate, onLogout }) => {
 
 function AppContent() {
   const { user, needsProfileSelection, finishProfileSelection } = useAuth();
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      initPlugins();
+    }
+  }, []);
 
   // Se o usuário precisa selecionar perfil, mostrar ProfileSelector
   if (needsProfileSelection && user) {
@@ -3029,6 +3057,7 @@ function AppContent() {
             <Route path="/pagamento/historico" element={<ProtectedRoute><PageWrapper><PaymentHistoryWrapper /></PageWrapper></ProtectedRoute>} />
             <Route path="/pagamento/processar/:bookingId" element={<ProtectedRoute><PageWrapper><PaymentProcessWrapper /></PageWrapper></ProtectedRoute>} />
             <Route path="/seguranca" element={<ProtectedRoute><PageWrapper><div className="text-center py-8"><h2 className="text-2xl font-bold mb-4">Segurança</h2><p className="text-gray-600">Funcionalidade em desenvolvimento</p></div></PageWrapper></ProtectedRoute>} />
+            <Route path="/debug/camera" element={<ProtectedRoute><PageWrapper><CameraTest /></PageWrapper></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
       <Toaster />

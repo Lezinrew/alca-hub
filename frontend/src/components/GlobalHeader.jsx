@@ -34,9 +34,22 @@ const GlobalHeader = ({ onMenuToggle, showMenuButton = true }) => {
       );
 
       if (response.data) {
-        // Atualizar dados do usuário no localStorage
-        localStorage.setItem('user', JSON.stringify(response.data));
-        setUser(response.data);
+        // Atualizar dados do usuário no localStorage (sanitizar dados)
+        const userData = {
+          id: response.data.id,
+          email: response.data.email,
+          nome: response.data.nome,
+          cpf: response.data.cpf,
+          telefone: response.data.telefone,
+          endereco: response.data.endereco,
+          tipos: response.data.tipos,
+          tipo_ativo: response.data.tipo_ativo,
+          ativo: response.data.ativo,
+          created_at: response.data.created_at,
+          updated_at: response.data.updated_at
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
         
         toast({
           title: "Modo alterado!",

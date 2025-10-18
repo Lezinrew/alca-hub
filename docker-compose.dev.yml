@@ -1,44 +1,120 @@
 # Docker Compose para Desenvolvimento - Alça Hub
-# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Hot Reload e Desenvolvimento em Tempo Real
 
 services:
-  # Backend com hot reload
+  # Banco de dados MongoDB
+  mongo:
+    image: mongo:latest
+    container_name: alca-hub-mongo-dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-alca_hub}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+      - mongo_config_dev:/data/configdb
+    networks:
+      - alca-hub-dev-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend FastAPI com Hot Reload
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+    container_name: alca-hub-backend-dev
+    restart: unless-stopped
     environment:
+      - MONGO_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongo:27017/${MONGO_DATABASE:-alca_hub}?authSource=admin
+      - DB_NAME=${MONGO_DATABASE:-alca_hub}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-me}
+      - MERCADO_PAGO_ACCESS_TOKEN=${MERCADO_PAGO_ACCESS_TOKEN}
+      - MERCADO_PAGO_PUBLIC_KEY=${MERCADO_PAGO_PUBLIC_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
       - DEBUG=1
       - ENV=dev
-      - MONGO_URL=mongodb://mongo:27017
-      - DB_NAME=alca_hub_dev
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
-    volumes:
-      - ./backend:/app
-      - backend_logs:/app/logs
-    command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+      - PYTHONPATH=/app
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_logs_dev:/app/logs
+      - /app/__pycache__
+      - /app/.pytest_cache
+    networks:
+      - alca-hub-dev-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
 
-  # Frontend com hot reload
+  # Frontend React com Hot Reload
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    container_name: alca-hub-frontend-dev
+    restart: unless-stopped
     environment:
-      - NODE_ENV=development
       - REACT_APP_BACKEND_URL=http://localhost:8000
+      - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    ports:
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: ["yarn", "start"]
-    ports:
-      - "3000:3000"
+      - /app/.next
+    networks:
+      - alca-hub-dev-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: yarn dev --host 0.0.0.0 --port 3000
 
-  # MongoDB para desenvolvimento
-  mongo:
-    environment:
-      - MONGO_INITDB_DATABASE=alca_hub_dev
-    ports:
-      - "27017:27017"
+  # Monitor de Mudanças (Opcional)
+  file-watcher:
+    image: alpine:latest
+    container_name: alca-hub-watcher
+    volumes:
+      - ./:/watch
+    networks:
+      - alca-hub-dev-network
+    command: sh -c "apk add --no-cache inotify-tools && while inotifywait -r -e modify,create,delete /watch; do echo 'Arquivo alterado - Verificando se restart é necessário...'; done"
+
+# Volumes para desenvolvimento
+volumes:
+  mongo_data_dev:
+    driver: local
+  mongo_config_dev:
+    driver: local
+  backend_logs_dev:
+    driver: local
+
+# Network para desenvolvimento
+networks:
+  alca-hub-dev-network:
+    driver: bridge
+    name: alca-hub-dev-network

@@ -1,0 +1,21 @@
+{
+	"appId": "com.alca.hub",
+	"appName": "Alca Hub",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#ffffff",
+			"showSpinner": false
+		},
+		"StatusBar": {
+			"style": "dark"
+		}
+	},
+	"packageClassList": [
+		"CDVPlugin"
+	]
+}

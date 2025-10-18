@@ -39,6 +39,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cordova-plugin-camera": "^8.0.0",
+    "cordova-plugin-geolocation": "^5.0.0",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.12",

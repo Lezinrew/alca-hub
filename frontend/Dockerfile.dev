@@ -1,27 +1,23 @@
-# Dockerfile para Desenvolvimento - Frontend (React) - Alça Hub
-FROM node:20-alpine
-
-# Definir diretório de trabalho
-WORKDIR /app
+# Dockerfile para Desenvolvimento - Frontend React
+FROM node:18-alpine
 
 # Instalar dependências do sistema
 RUN apk add --no-cache curl
 
-# Copiar arquivos de dependências
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar package.json e yarn.lock primeiro (para cache de layers)
 COPY package.json yarn.lock ./
 
 # Instalar dependências
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 # Copiar código fonte
 COPY . .
 
-# Expor porta da aplicação
+# Expor porta
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
-
-# Comando para iniciar em modo de desenvolvimento
-CMD ["/app/start.sh"]
+# Comando padrão com hot reload
+CMD ["yarn", "dev", "--host", "0.0.0.0", "--port", "3000"]

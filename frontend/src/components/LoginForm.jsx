@@ -265,11 +265,12 @@ const LoginForm = () => {
                     onBlur={handleEmailBlur}
                     onFocus={handleEmailFocus}
                     placeholder="seu@email.com"
+                    autoComplete="email"
                     className={`pl-10 pr-10 ${
-                      emailStatus === 'valid' 
-                        ? 'border-green-500 focus:border-green-500' 
-                        : emailStatus === 'invalid' 
-                        ? 'border-red-500 focus:border-red-500' 
+                      emailStatus === 'valid'
+                        ? 'border-green-500 focus:border-green-500'
+                        : emailStatus === 'invalid'
+                        ? 'border-red-500 focus:border-red-500'
                         : ''
                     }`}
                     required
@@ -340,6 +341,7 @@ const LoginForm = () => {
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     placeholder="Sua senha"
+                    autoComplete="current-password"
                     className={`pl-10 pr-10 ${
                       errors.password ? 'border-red-500 focus:border-red-500' : ''
                     }`}

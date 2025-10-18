@@ -1,0 +1,107 @@
+name: Mobile Tests
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+    paths:
+      - 'mobile/**'
+      - 'frontend/src/**'
+
+jobs:
+  android-tests:
+    name: Android Unit Tests & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x mobile/android/gradlew
+
+      - name: Run Unit Tests
+        run: |
+          cd mobile/android
+          ./gradlew test --continue
+
+      - name: Run Lint
+        run: |
+          cd mobile/android
+          ./gradlew lint
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: '**/build/test-results/**/TEST-*.xml'
+          check_name: Android Test Report
+          detailed_summary: true
+          include_passed: true
+
+      - name: Upload Lint Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-results
+          path: mobile/android/app/build/reports/lint-results-*.html
+          retention-days: 7
+
+      - name: Check Lint Results
+        run: |
+          cd mobile/android
+          if [ -f "app/build/reports/lint-results-devDebug.xml" ]; then
+            ERROR_COUNT=$(grep -c 'severity="Error"' app/build/reports/lint-results-devDebug.xml || echo "0")
+            if [ "$ERROR_COUNT" -gt 0 ]; then
+              echo "::error::Found $ERROR_COUNT lint errors"
+              exit 1
+            fi
+          fi
+
+  android-build-check:
+    name: Android Build Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [devDebug, devRelease, prodDebug]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x mobile/android/gradlew
+
+      - name: Build ${{ matrix.variant }}
+        run: |
+          cd mobile/android
+          ./gradlew assemble${{ matrix.variant }} --stacktrace
+
+      - name: Check APK Size
+        run: |
+          APK_PATH=$(find mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
+          if [ -f "$APK_PATH" ]; then
+            SIZE_BYTES=$(stat -f%z "$APK_PATH" 2>/dev/null || stat -c%s "$APK_PATH")
+            SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1024 / 1024" | bc)
+            echo "APK Size: ${SIZE_MB} MB"
+
+            # Alertar se APK for muito grande (> 50 MB)
+            if (( $(echo "$SIZE_MB > 50" | bc -l) )); then
+              echo "::warning::APK size is large: ${SIZE_MB} MB"
+            fi
+          fi

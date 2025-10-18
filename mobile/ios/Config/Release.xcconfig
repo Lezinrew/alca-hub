@@ -1,0 +1,29 @@
+// Release Configuration for AlcaHub iOS
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = br.com.alcahub.app
+PRODUCT_NAME = AlcaHub
+
+// Swift Version
+SWIFT_VERSION = 5.10
+
+// Build Settings
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule
+GCC_OPTIMIZATION_LEVEL = s
+ENABLE_TESTABILITY = NO
+
+// Signing & Capabilities
+CODE_SIGN_IDENTITY = iPhone Distribution
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = $(DEVELOPMENT_TEAM)
+PROVISIONING_PROFILE_SPECIFIER = $(PROVISIONING_PROFILE_SPECIFIER)
+
+// API Configuration
+API_BASE_URL = https:/$()/api.alcahub.com.br
+API_ENVIRONMENT = production
+
+// Other Settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ONLY_ACTIVE_ARCH = NO
+VALIDATE_PRODUCT = YES

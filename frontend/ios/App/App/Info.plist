@@ -45,5 +45,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	
+	<!-- Permissions for Cordova plugins -->
+	<key>NSCameraUsageDescription</key>
+	<string>Este app precisa acessar a câmera para tirar fotos e fazer upload de imagens.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Este app precisa acessar a galeria para escolher imagens.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Este app precisa acessar sua localização para fornecer serviços baseados em localização.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Este app precisa acessar sua localização para fornecer serviços baseados em localização.</string>
 </dict>
 </plist>

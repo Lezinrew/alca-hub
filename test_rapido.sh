@@ -40,7 +40,8 @@ echo ""
 echo "2️⃣  Registrando novo usuário..."
 TIMESTAMP=$(date +%s)
 EMAIL="teste${TIMESTAMP}@example.com"
-CPF="${TIMESTAMP:0:11}"
+# Gerar CPF com 11 dígitos
+CPF="$(printf "%011d" $((RANDOM * RANDOM % 100000000000)))"
 
 REGISTER_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/register" \
   -H "Content-Type: application/json" \

@@ -19,14 +19,52 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [needsProfileSelection, setNeedsProfileSelection] = useState(false);
 
+  // Configurar interceptor para lidar com erros 401
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        // Se receber 401, limpar autenticação
+        if (error.response?.status === 401) {
+          const currentPath = window.location.pathname;
+          // Não fazer logout se já estiver nas páginas públicas
+          if (!['/login', '/register', '/forgot-password', '/reset-password'].includes(currentPath)) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            delete axios.defaults.headers.common['Authorization'];
+            setUser(null);
+            setNeedsProfileSelection(false);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-    
+
     if (token && userData) {
-      setUser(JSON.parse(userData));
-      // Configurar header de autorização para futuras requisições
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        // Configurar header de autorização para futuras requisições
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      } catch (error) {
+        // Se houver erro ao parsear os dados, limpar localStorage
+        console.error('Erro ao carregar dados do usuário:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        delete axios.defaults.headers.common['Authorization'];
+      }
+    } else {
+      // Se não houver token, garantir que não há header de autorização
+      delete axios.defaults.headers.common['Authorization'];
     }
     setLoading(false);
   }, []);
@@ -42,7 +80,21 @@ export const AuthProvider = ({ children }) => {
         const { access_token, user } = response.data;
         
         localStorage.setItem('token', access_token);
-        localStorage.setItem('user', JSON.stringify(user));
+        // Sanitizar dados do usuário antes de salvar
+        const sanitizedUser = {
+          id: user.id,
+          email: user.email,
+          nome: user.nome,
+          cpf: user.cpf,
+          telefone: user.telefone,
+          endereco: user.endereco,
+          tipos: user.tipos,
+          tipo_ativo: user.tipo_ativo,
+          ativo: user.ativo,
+          created_at: user.created_at,
+          updated_at: user.updated_at
+        };
+        localStorage.setItem('user', JSON.stringify(sanitizedUser));
         
         // Configurar header de autorização para futuras requisições
         axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;

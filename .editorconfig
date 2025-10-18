@@ -1,0 +1,83 @@
+# EditorConfig - AlcaHub
+# https://editorconfig.org
+
+root = true
+
+# Defaults for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Kotlin files
+[*.{kt,kts}]
+indent_size = 4
+max_line_length = 120
+ij_kotlin_code_style_defaults = KOTLIN_OFFICIAL
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
+ij_kotlin_name_count_to_use_star_import = 5
+ij_kotlin_name_count_to_use_star_import_for_members = 3
+ij_kotlin_packages_to_use_import_on_demand = java.util.*,kotlinx.android.synthetic.**
+
+# Java files
+[*.java]
+indent_size = 4
+max_line_length = 120
+
+# Gradle files
+[*.gradle]
+indent_size = 4
+
+# Gradle Kotlin DSL
+[*.gradle.kts]
+indent_size = 4
+
+# XML files (Android resources, manifests)
+[*.xml]
+indent_size = 4
+ij_xml_space_inside_empty_tag = true
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Shell scripts
+[*.sh]
+indent_size = 2
+end_of_line = lf
+
+# Properties files
+[*.properties]
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Makefile
+[Makefile]
+indent_style = tab
+
+# iOS Swift files
+[*.swift]
+indent_size = 4
+max_line_length = 120
+
+# iOS Objective-C files
+[*.{h,m}]
+indent_size = 4
+
+# Package manifests
+[{package.json,*.gemspec,Gemfile}]
+indent_size = 2

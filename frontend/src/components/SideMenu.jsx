@@ -35,6 +35,13 @@ const SideMenu = ({ onClose }) => {
       </Button>
       
       <hr className="my-2" />
+
+      {/* Testes e Plugins */}
+      <Button variant="ghost" className="w-full justify-start hover:bg-gray-100 cursor-pointer" onClick={() => go('/debug/camera')}>
+        📷 Testar Plugins
+      </Button>
+      
+      <hr className="my-2" />
       
       {/* Configurações da Conta */}
       <Button variant="ghost" className="w-full justify-start hover:bg-gray-100 cursor-pointer" onClick={() => go('/conta')}>

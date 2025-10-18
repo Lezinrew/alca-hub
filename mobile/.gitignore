@@ -1,0 +1,70 @@
+# Mobile - iOS & Android
+
+# iOS
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/*.xcworkspace/xcuserdata/
+ios/App/*.xcodeproj/xcuserdata/
+ios/App/*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+ios/App/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/DerivedData/
+ios/App/build/
+ios/App/.build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+.DS_Store
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/*.iml
+android/.externalNativeBuild
+android/.cxx
+android/captures/
+android/output.json
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.log
+
+# Fastlane
+ios/fastlane/report.xml
+ios/fastlane/Preview.html
+ios/fastlane/screenshots
+ios/fastlane/test_output
+ios/fastlane/.env
+android/fastlane/report.xml
+android/fastlane/Preview.html
+android/fastlane/screenshots
+android/fastlane/test_output
+android/fastlane/.env
+
+# Ruby/Bundler
+ios/Gemfile.lock
+android/Gemfile.lock
+ios/vendor/
+android/vendor/
+
+# Certificates & Keys (NUNCA commitar)
+*.p12
+*.mobileprovision
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
